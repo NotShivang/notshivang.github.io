@@ -7,8 +7,10 @@ LichessPgnViewer(document.getElementById('chess-{{ include.id }}'), {
   pgn: `{{ include.pgn }}`,
   showPlayers: 'auto',
   showClocks: false,
-  showMoves: 'auto',
+  showMoves: 'bottom',
   showControls: true,
-  initialPly: 0
+  initialPly: 0,
+  scrollToMove: false,
+  orientation: '{{ include.orientation | default: "white" }}'
 });
 </script>
