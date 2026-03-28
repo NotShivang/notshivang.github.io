@@ -1,0 +1,14 @@
+<div class="chess-game" id="chess-{{ include.id }}"></div>
+
+<script type="module">
+import LichessPgnViewer from 'https://cdn.jsdelivr.net/npm/lichess-pgn-viewer@2/dist/lichess-pgn-viewer.min.js';
+
+LichessPgnViewer(document.getElementById('chess-{{ include.id }}'), {
+  pgn: `{{ include.pgn }}`,
+  showPlayers: 'auto',
+  showClocks: false,
+  showMoves: 'auto',
+  showControls: true,
+  initialPly: 0
+});
+</script>
