@@ -1,27 +1,788 @@
----
-layout: default
-pagination:
-  enabled: true
----
-<div class="home">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shivang Arya</title>
+<link rel="icon" type="image/x-icon" href="/assets/icons/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/assets/icons/favicon-16x16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/icons/apple-icon-180x180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: oklch(97.5% 0.006 215);
+    --bg2: oklch(93% 0.009 215);
+    --text: oklch(14% 0.014 220);
+    --text-muted: oklch(46% 0.01 220);
+    --accent: oklch(62% 0.16 210);
+    --accent-2: oklch(45% 0.18 240);
+    --accent-light: oklch(93% 0.04 210);
+    --rule: oklch(84% 0.009 215);
+    --sidebar-w: 268px;
+    --font-serif: 'Cormorant Garamond', Georgia, serif;
+    --font-sans: 'DM Sans', system-ui, sans-serif;
+  }
+  html, body, #root { height: 100%; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-sans); font-size: 16px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(16px) } to { opacity:1; transform:none } }
+  @keyframes fillBar { from { width:0 } to { width: var(--fill-w) } }
+  * { transition: color 0.3s, background-color 0.3s, border-color 0.3s; }
 
-<div class="site-header-container {% if site.cover %}has-cover{% endif %}" {% if site.cover %}style="background-image: url({{ site.cover | prepend: site.baseurl }});"{% endif %}>
-  <div class="scrim {% if site.cover %}has-cover{% endif %}">
-    <header class="site-header">
-      <h1 class="title">{{ site.title }}</h1>
-      {% if site.subtitle %}<p class="subtitle">{{ site.subtitle }}</p>{% endif %}
-    </header>
-  </div>
-</div>
+  /* ── Mobile ── */
+  #mob-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.38); z-index:18; }
+  #mob-overlay.visible { display:block; }
+  #hamburger {
+    display:none; position:fixed; top:14px; right:14px; z-index:22;
+    background:var(--bg); border:1px solid var(--rule); border-radius:8px;
+    width:40px; height:40px; cursor:pointer; align-items:center; justify-content:center;
+    flex-direction:column; gap:5px; padding:0; transition:background 0.2s;
+  }
+  #hamburger span { display:block; width:18px; height:1.5px; background:var(--text); border-radius:2px; transition:transform 0.25s, opacity 0.25s; }
+  #hamburger.open span:nth-child(1) { transform:translateY(6.5px) rotate(45deg); }
+  #hamburger.open span:nth-child(2) { opacity:0; }
+  #hamburger.open span:nth-child(3) { transform:translateY(-6.5px) rotate(-45deg); }
 
-<div class="wrapper">
+  @media (max-width: 768px) {
+    :root { --sidebar-w: 0px; }
+    #hamburger { display:flex; }
 
-<p align="justify">
-Welcome to my corner of the internet. This is where I share projects I'm working on and things I find interesting.
-</p>
-<p align="justify">
-Feel free to look around and connect with me through the links below.
-</p>
+    .sidebar {
+      transform: translateX(-268px) !important;
+      transition: transform 0.3s cubic-bezier(.4,0,.2,1) !important;
+      width: 268px !important;
+      background: var(--bg) !important;
+      box-shadow: none;
+    }
+    .sidebar.mob-open {
+      transform: translateX(0) !important;
+      box-shadow: 4px 0 32px rgba(0,0,0,0.12);
+    }
 
-</div>
-</div>
+    .page-main {
+      margin-left: 0 !important;
+      padding: 56px 22px 64px !important;
+      max-width: 100% !important;
+    }
+
+    .grid-2col { grid-template-columns: 1fr !important; }
+
+    .chess-wrap { flex-direction: column !important; }
+    .chess-movelist { max-height: 180px !important; }
+
+    .feat-grid { grid-template-columns: 1fr !important; max-width: 100% !important; }
+
+    .seg-inner { flex-direction: column !important; gap: 12px !important; }
+
+    .home-h1 { font-size: clamp(2.2rem, 10vw, 5.2rem) !important; }
+  }
+</style>
+</head>
+<body>
+
+<div id="mob-overlay" onclick="closeMobNav()"></div>
+<button id="hamburger" onclick="toggleMobNav()" aria-label="Menu">
+  <span></span><span></span><span></span>
+</button>
+<div id="root"></div>
+
+<script>
+function toggleMobNav(){
+  const open = document.getElementById('hamburger').classList.toggle('open');
+  document.querySelector('.sidebar')?.classList.toggle('mob-open', open);
+  document.getElementById('mob-overlay').classList.toggle('visible', open);
+}
+function closeMobNav(){
+  document.getElementById('hamburger').classList.remove('open');
+  document.querySelector('.sidebar')?.classList.remove('mob-open');
+  document.getElementById('mob-overlay').classList.remove('visible');
+}
+</script>
+
+<script type="text/babel">
+
+const { useState, useEffect, useRef } = React;
+
+// ── Data ─────────────────────────────────────────────
+
+const PROJECTS = [
+{
+  id: 'tarmac', name: 'Tarmac', year: '2026', wip: false,
+  tagline: 'AirPlay receiver for Android TV. Actually works.',
+  description: 'The Play Store had options. None of them worked properly. Tarmac does — 4K HEVC mirroring, HDR10 passthrough, and a real extended-display mode on Chromecast, NVIDIA Shield, and Fire TV Cube.',
+  features: [
+  { label: '4K HEVC', detail: '1080p60 and 4K mirroring via hardware MediaCodec' },
+  { label: 'HDR10', detail: 'Full HDR passthrough, tunneled playback' },
+  { label: 'Extended Display', detail: '"Use As Separate Display" — real second monitor from macOS' },
+  { label: 'AirPlay Video', detail: 'Stream from Photos, Apple TV app and more' }],
+
+  github: 'https://github.com/llmassisted/tarmac',
+  download: 'https://github.com/llmassisted/tarmac/releases'
+},
+{
+  id: 'modocs', name: 'MoDocs', year: '2026', wip: false,
+  tagline: 'Lightweight Android document viewer. All formats, no ads.',
+  description: 'There was no single lightweight app on the Play Store that opened PDF, DOCX, XLSX, and PPTX without showing ads. So I built one. Requires Android 8.0+.',
+  features: [
+  { label: 'PDF', detail: 'View, search, fill forms, signatures, save' },
+  { label: 'DOCX', detail: 'Word docs with formatting, images, tables' },
+  { label: 'XLSX', detail: 'View and edit spreadsheet cells' },
+  { label: 'PPTX', detail: 'Presentations with text, shapes, backgrounds' }],
+
+  github: 'https://github.com/NotShivang/modocs',
+  download: 'https://github.com/NotShivang/modocs/releases'
+}];
+
+
+const CHESS_GAMES = [
+{ id: 1, white: 'NotSA', black: 'maliktadjer', opening: 'Hungarian Opening', date: 'Mar 16, 2020', result: '1-0',
+  note: 'A quiet Hungarian that sharpens into a tactical endgame — won by checkmate on move 43.',
+  elo: '1185 vs 1211',
+  pgn: 'g3 e6 Nf3 Bc5 Bg2 c6 O-O Nf6 d4 Bd6 Nc3 b6 Bg5 Bb7 Ne4 Be7 Nxf6+ gxf6 Bh6 d5 Nh4 f5 Nf3 Qc7 Ne5 Nd7 f4 Nxe5 fxe5 O-O-O Bd2 c5 e3 cxd4 exd4 h5 h4 Rdg8 Rf3 Rg6 a3 Rhg8 Bf4 Bxh4 Qe1 Qxc2 Qf2 Qc4 Rc1 Qxc1+ Bxc1 Bxg3 Qc2+ Kd7 Rc3 Rc8 Rxc8 Bxc8 Qa4+ Kc7 Qxa7+ Bb7 Qa4 Rg4 Be3 Re4 Bf2 Bxe5 Bxe4 dxe4 dxe5 e3 Bxe3 h4 Qc2+ Kb8 Bxb6 h3 Kh2 f4 Qc7+ Ka8 Qd8+ Bc8 Qxc8#' },
+{ id: 2, white: 'surebeatsworking', black: 'NotSA', opening: "King's Indian Defense", date: 'Feb 14, 2026', result: '0-1',
+  note: "A sharp KID where black outmanoeuvres white's queenside setup and wins by resignation on move 29.",
+  elo: '1300 vs 1175',
+  pgn: 'd4 Nf6 c4 d6 Nc3 g6 Nf3 Bg7 Bg5 O-O e3 c6 Be2 Nbd7 O-O a6 a3 b5 cxb5 cxb5 Qc2 Bb7 b4 Rc8 Rac1 Ne4 Qb2 Nxg5 Nxg5 e5 Nf3 exd4 Nxd4 Re8 Bf3 Bxf3 Nxf3 Qf6 Nd4 Ne5 Nd5 Qg5 Nf4 Nf3+ Nxf3 Bxb2 Rxc8 Qe7 Rxe8+ Qxe8 Rb1 Bxa3 Nd5 Qe6 Rd1 Bxb4 Nxb4 Qb3' }];
+
+
+const STRAVA_SEGS = [
+{
+  name: 'Hornsby Tedford Combo',
+  location: 'Austin, Texas',
+  km: '1.15 km', elev: '41 m gain', grade: '3.5%', pr: '3:41', efforts: 53,
+  url: 'https://www.strava.com/segments/34604913',
+  d: 'M 18,12 L 32,18 L 34,32 L 48,44 L 50,58 L 58,72 L 60,84',
+  start: [18, 12], end: [60, 84], viewBox: '0 0 90 92',
+  elevProfile: [193,195,198,202,208,215,220,226,230,234],
+},
+{
+  name: 'Mesa – Cat Mountain Stop Sign',
+  location: 'Austin, Texas',
+  km: '1.19 km', elev: '95 m gain', grade: '7.9%', pr: '7:43', efforts: 3,
+  url: 'https://www.strava.com/segments/34317272',
+  d: 'M 45,84 L 45,68 L 45,52 L 45,36 C 45,28 46,20 50,14 C 52,10 54,8 52,6',
+  start: [45, 84], end: [52, 6], viewBox: '0 0 90 92',
+  elevProfile: [176,185,196,208,220,238,254,266,270],
+},
+{
+  name: 'CotA Lap at Finish Line',
+  location: 'Austin, Texas',
+  km: '5.42 km', elev: '72 m gain', grade: '-0.1%', pr: '11:50', efforts: 11,
+  url: 'https://www.strava.com/segments/17427961',
+  d: 'M 60,20 L 76,18 C 84,16 88,22 84,30 C 80,36 72,32 68,28 C 70,36 66,40 70,46 C 66,50 60,50 56,58 L 46,68 C 36,76 20,78 12,66 C 6,58 12,50 18,46 C 20,42 26,38 22,30 C 20,22 28,16 36,18 L 50,20 Z',
+  start: [60, 20], end: [60, 20], viewBox: '0 0 100 90',
+  elevProfile: [150,160,175,184,180,172,165,158,155,152,156,162,168,162,157,152,150],
+},
+{
+  name: 'Colborne + Hot Lap',
+  location: 'Toronto, Canada',
+  km: '2.57 km', elev: '35 m gain', grade: '1%', pr: '6:48', efforts: 5,
+  url: 'https://www.strava.com/segments/25643158',
+  d: 'M 48,84 C 52,70 56,56 54,42 C 52,30 46,20 38,18 C 30,16 22,24 22,38 C 22,52 28,66 38,76 C 42,80 46,84 48,84',
+  start: [48, 84], end: [48, 84], viewBox: '0 0 90 92',
+  elevProfile: [75,78,82,88,92,96,100,104,107,104,100,95,88,82,78,75],
+},
+];
+
+
+// ── Router ────────────────────────────────────────────
+function useRoute() {
+  const [route, setRoute] = useState(() => window.location.hash.replace('#', '') || 'home');
+  useEffect(() => {
+    const h = () => setRoute(window.location.hash.replace('#', '') || 'home');
+    window.addEventListener('hashchange', h);
+    return () => window.removeEventListener('hashchange', h);
+  }, []);
+  return [route, (r) => {window.location.hash = r;}];
+}
+
+// ── Shared UI ─────────────────────────────────────────
+function Label({ children }) {
+  return <div style={{ fontFamily: 'var(--font-sans)', fontSize: '0.68rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--accent)', fontWeight: 500, marginBottom: 8 }}>{children}</div>;
+}
+function Rule() {return <hr style={{ border: 'none', borderTop: '1px solid var(--rule)', margin: '40px 0' }} />;}
+
+function NavLink({ label, target, current, go }) {
+  const active = current === target;
+  return (
+    <button onClick={() => { go(target); closeMobNav(); }} style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: '0.78rem', letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: active ? 500 : 300, color: active ? 'var(--accent)' : 'var(--text-muted)', padding: '7px 0', transition: 'color 0.2s' }}
+    onMouseEnter={(e) => {if (!active) e.currentTarget.style.color = 'var(--text)';}}
+    onMouseLeave={(e) => {if (!active) e.currentTarget.style.color = 'var(--text-muted)';}}>
+      {label}
+    </button>);
+
+}
+
+// ── Sidebar ───────────────────────────────────────────
+function Sidebar({ route, go }) {
+  return (
+    <aside className="sidebar" style={{ position: 'fixed', top: 0, left: 0, bottom: 0, width: 268, borderRight: '1px solid var(--rule)', display: 'flex', flexDirection: 'column', padding: '44px 36px', zIndex: 20 }}>
+      <button onClick={() => go('home')} style={{ background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0, marginBottom: 44 }}>
+        <img src="assets/logo.png" alt="Shivang Arya logo" style={{ width: 48, height: 48, objectFit: 'contain', display: 'block', marginBottom: 14 }} />
+        <div style={{ fontFamily: 'var(--font-serif)', fontSize: '1.2rem', fontWeight: 600, lineHeight: 1.15, color: 'var(--text)', letterSpacing: '-0.01em' }}>Shivang Arya</div>
+        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 300, marginTop: 3, letterSpacing: '0.04em' }}>shivangarya.com</div>
+      </button>
+
+      <nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {[['Home', 'home'], ['About', 'about'], ['Projects', 'projects'], ['Blog', 'blog'], ['Contact', 'contact']].map(([l, t]) =>
+        <NavLink key={t} label={l} target={t} current={route} go={go} />
+        )}
+      </nav>
+
+      <div style={{ marginTop: 'auto' }}>
+        <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
+          {[
+          { title: 'GitHub', href: 'https://github.com/NotShivang', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" /></svg> },
+          { title: 'LinkedIn', href: 'https://www.linkedin.com/in/shivangarya/', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" /><rect x="2" y="9" width="4" height="12" /><circle cx="4" cy="4" r="2" /></svg> }].
+          map((l) =>
+          <a key={l.href} href={l.href} target="_blank" rel="noopener" title={l.title} style={{ color: 'var(--text-muted)', display: 'block', transition: 'color 0.2s' }}
+          onMouseEnter={(e) => e.currentTarget.style.color = 'var(--accent)'}
+          onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}>
+              {l.icon}
+            </a>
+          )}
+        </div>
+        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 300 }}>© 2026</div>
+      </div>
+    </aside>);
+
+}
+
+// ── Page wrapper ──────────────────────────────────────
+function Page({ children, route }) {
+  const ref = useRef();
+  useEffect(() => {
+    const el = ref.current;
+    el.style.opacity = '0';el.style.transform = 'translateY(14px)';
+    requestAnimationFrame(() => {
+      el.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+      el.style.opacity = '1';el.style.transform = 'translateY(0)';
+    });
+  }, [route]);
+  return (
+    <main ref={ref} className="page-main" style={{ marginLeft: 'var(--sidebar-w)', minHeight: '100vh', padding: '72px 80px 80px 68px', maxWidth: 'calc(var(--sidebar-w) + 800px)' }}>
+      {children}
+    </main>);
+
+}
+
+// ── HOME ──────────────────────────────────────────────
+function HomePage({ go }) {
+  return (
+    <div>
+      <div style={{ marginBottom: 56 }}>
+        <Label>Welcome</Label>
+        <h1 className="home-h1" style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(2.8rem, 5.5vw, 5.2rem)', fontWeight: 300, lineHeight: 1.07, letterSpacing: '-0.01em', marginBottom: 28 }}>
+          Out of the box.<br />
+          <em style={{ fontStyle: 'italic', color: 'var(--accent)' }}>Always.</em>
+        </h1>
+        <p style={{ fontSize: '1.05rem', color: 'var(--text-muted)', fontWeight: 300, maxWidth: 500, lineHeight: 1.8 }}>I'm Shivang. I build things when I can't find what I need, think sideways before going straight, and somehow rope people into caring about the same things I do.
+
+        </p>
+      </div>
+
+      <Rule />
+
+      <div className="grid-2col" style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 2, marginBottom: 2 }}>
+        {[
+        { label: 'About', desc: "The stuff that doesn't fit on a résumé", route: 'about' },
+        { label: 'Projects', desc: 'Things I got frustrated enough to build', route: 'projects' },
+        { label: 'Blog', desc: 'Chess games and whatever is on my mind', route: 'blog' },
+        { label: 'Contact', desc: 'GitHub and LinkedIn', route: 'contact' }].
+        map((c) =>
+        <button key={c.route} onClick={() => go(c.route)} style={{ background: 'none', border: '1px solid var(--rule)', borderRadius: 0, cursor: 'pointer', textAlign: 'left', padding: '26px 24px', color: 'var(--text)', transition: 'background 0.2s, border-color 0.2s' }}
+        onMouseEnter={(e) => {e.currentTarget.style.background = 'var(--accent-light)';e.currentTarget.style.borderColor = 'var(--accent)';}}
+        onMouseLeave={(e) => {e.currentTarget.style.background = 'none';e.currentTarget.style.borderColor = 'var(--rule)';}}>
+            <div style={{ fontFamily: 'var(--font-serif)', fontSize: '1.35rem', fontWeight: 600, marginBottom: 6 }}>{c.label}</div>
+            <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 300 }}>{c.desc}</div>
+          </button>
+        )}
+      </div>
+    </div>);
+
+}
+
+// ── ABOUT ─────────────────────────────────────────────
+function CyclingBar() {
+  const KM = 9840;const GOAL = 10000;
+  const pct = Math.min(KM / GOAL * 100, 100);
+  return (
+    <div style={{ marginTop: 32 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+        <span style={{ fontFamily: 'var(--font-serif)', fontSize: '2.4rem', fontWeight: 600 }}>{KM.toLocaleString()} <span style={{ fontSize: '1rem', fontWeight: 300, color: 'var(--text-muted)' }}>km</span></span>
+        <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 300 }}>Goal: {GOAL.toLocaleString()} km</span>
+      </div>
+      <div style={{ height: 6, background: 'var(--rule)', borderRadius: 3, overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: `${pct}%`, background: 'var(--accent)', borderRadius: 3, transition: 'width 1s ease' }} />
+      </div>
+      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 8, fontWeight: 300 }}>
+        Started May 2021 · {(GOAL - KM).toLocaleString()} km to 10,000
+      </div>
+    </div>);
+
+}
+
+function AboutPage() {
+  return (
+    <div>
+      <Label>About</Label>
+      <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: '3rem', fontWeight: 300, lineHeight: 1.1, marginBottom: 28 }}>
+        A lot going on,<br /><em style={{ fontStyle: 'italic', color: 'var(--accent)' }}>on purpose.</em>
+      </h1>
+
+      <p style={{ fontSize: '1.05rem', fontWeight: 300, lineHeight: 1.85, color: 'var(--text-muted)', maxWidth: 560, marginBottom: 20 }}>
+        Tech keeps me sharp. Leading people keeps me honest. Cycling keeps me sane. The chaos keeps it interesting.
+      </p>
+      <p style={{ fontSize: '1.05rem', fontWeight: 300, lineHeight: 1.85, color: 'var(--text-muted)', maxWidth: 560 }}>
+        I tend to ask "why not that instead?" more than most people are comfortable with. Somehow that's turned into a reputation for finding the door everyone else walked past.
+      </p>
+
+      <Rule />
+
+      {/* Cycling */}
+      <div style={{ marginBottom: 48 }}>
+        <Label>Cycling</Label>
+        <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '2rem', fontWeight: 300, marginBottom: 12 }}>Road biking is my reset.</h2>
+        <p style={{ fontSize: '0.92rem', color: 'var(--text-muted)', fontWeight: 300, maxWidth: 520, lineHeight: 1.8, marginBottom: 28 }}>
+          May 2021, first ride, completely hooked. I've since figured out that a long climb does more for my thinking than any meeting ever has.
+        </p>
+        <CyclingBar />
+      </div>
+
+      <div>
+        <Label>Favourite segments</Label>
+        <div className="grid-2col" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 3 }}>
+          {STRAVA_SEGS.map((s, i) => {
+            const pts = s.elevProfile;
+            const min = Math.min(...pts), max = Math.max(...pts);
+            const range = max - min || 1;
+            const W = 80, H = 24;
+            const sparkPts = pts.map((v, j) =>
+              `${(j / (pts.length - 1)) * W},${H - ((v - min) / range) * H}`
+            ).join(' ');
+
+            return (
+              <a key={i} href={s.url} target="_blank" rel="noopener"
+                style={{ display: 'flex', flexDirection: 'column', background: 'var(--bg2)', padding: '22px 20px 18px', textDecoration: 'none', color: 'var(--text)', borderBottom: '2px solid transparent', transition: 'background 0.2s, border-color 0.2s', cursor: 'pointer' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'var(--accent-light)'; e.currentTarget.style.borderBottomColor = 'var(--accent)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'var(--bg2)'; e.currentTarget.style.borderBottomColor = 'transparent'; }}>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+                  <div>
+                    <div style={{ fontFamily: 'var(--font-serif)', fontSize: '1.05rem', fontWeight: 600, lineHeight: 1.2, marginBottom: 3, color: 'var(--text)' }}>{s.name}</div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 300, letterSpacing: '0.04em' }}>{s.location}</div>
+                  </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 12 }}>
+                    <div style={{ fontSize: '0.6rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--accent)', fontWeight: 500, marginBottom: 2 }}>PR</div>
+                    <div style={{ fontFamily: 'var(--font-serif)', fontSize: '1.1rem', fontWeight: 600, color: 'var(--text)', letterSpacing: '-0.02em' }}>{s.pr}</div>
+                  </div>
+                </div>
+
+                <div className="seg-inner" style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                  <div style={{ flexShrink: 0, width: 90, height: 90, position: 'relative' }}>
+                    <svg viewBox={s.viewBox} width="90" height="90" style={{ display: 'block' }}>
+                      <rect x="0" y="0" width="100%" height="100%" fill="none" />
+                      {[0.25,0.5,0.75].map(t => (
+                        <React.Fragment key={t}>
+                          <line x1={`${t*100}%`} y1="0" x2={`${t*100}%`} y2="100%" stroke="var(--rule)" strokeWidth="0.5" />
+                          <line x1="0" y1={`${t*100}%`} x2="100%" y2={`${t*100}%`} stroke="var(--rule)" strokeWidth="0.5" />
+                        </React.Fragment>
+                      ))}
+                      <path
+                        d={s.d}
+                        fill="none"
+                        stroke="var(--accent)"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        opacity="0.9"
+                      />
+                      <circle cx={s.start[0]} cy={s.start[1]} r="3.5" fill="var(--accent)" opacity="0.45" />
+                      <circle cx={s.end[0]} cy={s.end[1]} r="3.5" fill="var(--accent)" />
+                    </svg>
+                  </div>
+
+                  <div style={{ fl: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 12px', flex: 1 }}>
+                    {[
+                      { label: 'Distance', val: s.km },
+                      { label: 'Elev gain', val: s.elev },
+                      { label: 'Avg grade', val: s.grade },
+                      { label: 'Efforts', val: String(s.efforts) },
+                    ].map(({ label, val }) => (
+                      <div key={label}>
+                        <div style={{ fontSize: '0.62rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 500, opacity: 0.6, marginBottom: 2 }}>{label}</div>
+                        <div style={{ fontSize: '0.88rem', fontWeight: 400, color: 'var(--text)', fontFamily: 'var(--font-serif)' }}>{val}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 14, borderTop: '1px solid var(--rule)', paddingTop: 10 }}>
+                  <div style={{ fontSize: '0.6rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', opacity: 0.5, marginBottom: 4 }}>Elevation profile</div>
+                  <svg width="100%" height="24" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: 'block' }}>
+                    <polyline points={sparkPts} fill="none" stroke="var(--accent)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.7" />
+                    <polygon points={`0,${H} ${sparkPts} ${W},${H}`} fill="var(--accent)" opacity="0.12" />
+                  </svg>
+                </div>
+              </a>
+            );
+          })}
+        </div>
+        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 300, marginTop: 10, opacity: 0.5, fontStyle: 'italic' }}>
+          Click any segment to view on Strava →
+        </div>
+      </div>
+    </div>);
+
+}
+
+// ── PROJECTS ──────────────────────────────────────────
+function ProjectsPage() {
+  return (
+    <div>
+      <Label>Projects</Label>
+      <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: '3rem', fontWeight: 300, lineHeight: 1.1, marginBottom: 12 }}>
+        Things I built<br />because they <em style={{ fontStyle: 'italic', color: 'var(--accent)' }}>didn't exist.</em>
+      </h1>
+      <p style={{ color: 'var(--text-muted)', fontWeight: 300, marginBottom: 52, maxWidth: 460, lineHeight: 1.75 }}>
+        Every project here started the same way: I went looking for something, couldn't find it done right, and got annoyed enough to build it myself.
+      </p>
+
+      {PROJECTS.map((p, i) =>
+      <div key={p.id} style={{ borderTop: '1px solid var(--rule)', paddingTop: 36, marginBottom: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, marginBottom: 4, flexWrap: 'wrap' }}>
+            <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '2.1rem', fontWeight: 600 }}>{p.name}</h2>
+            {p.wip && <span style={{ fontSize: '0.65rem', letterSpacing: '0.12em', textTransform: 'uppercase', background: 'var(--accent)', color: 'white', padding: '3px 9px', borderRadius: 2, fontWeight: 500 }}>WIP</span>}
+            <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 300 }}>{p.year}</span>
+          </div>
+          <p style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: '1.05rem', color: 'var(--text-muted)', marginBottom: 14, fontWeight: 300 }}>{p.tagline}</p>
+          <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 300, maxWidth: 560, lineHeight: 1.8, marginBottom: 26 }}>{p.description}</p>
+
+          <div className="feat-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, maxWidth: 560, marginBottom: 24 }}>
+            {p.features.map((f) =>
+          <div key={f.label} style={{ background: 'var(--bg2)', padding: '15px 18px', borderRadius: 2 }}>
+                <div style={{ fontSize: '0.68rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--accent)', fontWeight: 500, marginBottom: 5 }}>{f.label}</div>
+                <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 300, lineHeight: 1.6 }}>{f.detail}</div>
+              </div>
+          )}
+          </div>
+
+          <div style={{ display: 'flex', gap: 20 }}>
+            <a href={p.github} target="_blank" rel="noopener" style={{ fontSize: '0.8rem', color: 'var(--accent)', textDecoration: 'none', fontWeight: 500, letterSpacing: '0.06em', borderBottom: '1px solid transparent', transition: 'border-color 0.2s' }}
+          onMouseEnter={(e) => e.currentTarget.style.borderBottomColor = 'var(--accent)'}
+          onMouseLeave={(e) => e.currentTarget.style.borderBottomColor = 'transparent'}>
+              View on GitHub →
+            </a>
+            {p.download &&
+          <a href={p.download} target="_blank" rel="noopener" style={{ fontSize: '0.8rem', color: 'var(--accent)', textDecoration: 'none', fontWeight: 500, letterSpacing: '0.06em', borderBottom: '1px solid transparent', transition: 'border-color 0.2s' }}
+          onMouseEnter={(e) => e.currentTarget.style.borderBottomColor = 'var(--accent)'}
+          onMouseLeave={(e) => e.currentTarget.style.borderBottomColor = 'transparent'}>
+                Download APK →
+              </a>
+          }
+          </div>
+        </div>
+      )}
+      <div style={{ borderTop: '1px solid var(--rule)', height: 1 }} />
+    </div>);
+
+}
+
+// ── Chess Engine ──────────────────────────────────────
+class ChessEngine {
+  constructor() {this.reset();}
+  reset() {
+    this.board = [
+    ['r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'],
+    ['p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'],
+    [null, null, null, null, null, null, null, null],
+    [null, null, null, null, null, null, null, null],
+    [null, null, null, null, null, null, null, null],
+    [null, null, null, null, null, null, null, null],
+    ['P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'],
+    ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R']];
+
+    this.turn = 'w';this.ep = null;this.lastMove = null;
+  }
+  F = { a: 0, b: 1, c: 2, d: 3, e: 4, f: 5, g: 6, h: 7 };
+  move(san) {
+    san = san.replace(/[+#!?]/g, '');
+    const b = this.board.map((r) => [...r]);const w = this.turn === 'w';
+    let from = null,to = null;
+    if (san === 'O-O' || san === '0-0') {
+      const row = w ? 7 : 0;
+      b[row][4] = null;b[row][7] = null;b[row][6] = w ? 'K' : 'k';b[row][5] = w ? 'R' : 'r';
+      from = [row, 4];to = [row, 6];this.ep = null;
+    } else if (san === 'O-O-O' || san === '0-0-0') {
+      const row = w ? 7 : 0;
+      b[row][4] = null;b[row][0] = null;b[row][2] = w ? 'K' : 'k';b[row][3] = w ? 'R' : 'r';
+      from = [row, 4];to = [row, 2];this.ep = null;
+    } else {
+      let s = san,promo = null;
+      if (s.includes('=')) {{const p = s.split('=');s = p[0];promo = p[1];}}
+      s = s.replace('x', '');
+      let pt = 'P';
+      if ('NBRQK'.includes(s[0])) {pt = s[0];s = s.slice(1);}
+      const toCol = this.F[s.at(-2)],toRow = 8 - parseInt(s.at(-1));
+      const dis = s.slice(0, -2);
+      let dF = null,dR = null;
+      if (dis.length === 1) {'abcdefgh'.includes(dis) ? dF = this.F[dis] : dR = 8 - parseInt(dis);} else
+      if (dis.length === 2) {dF = this.F[dis[0]];dR = 8 - parseInt(dis[1]);}
+      const pc = w ? pt : pt.toLowerCase();
+      let fr = -1,fc = -1;
+      if (pt === 'P') {
+        if (dF !== null) {
+          fc = dF;fr = w ? toRow + 1 : toRow - 1;
+          if (b[toRow][toCol] === null && this.ep && this.ep[0] === toRow && this.ep[1] === toCol)
+          b[w ? toRow + 1 : toRow - 1][toCol] = null;
+          this.ep = null;
+        } else {
+          fc = toCol;
+          const dir = w ? 1 : -1;
+          fr = b[toRow + dir] && b[toRow + dir][fc] === pc ? toRow + dir : toRow + 2 * dir;
+          this.ep = Math.abs(fr - toRow) === 2 ? [(fr + toRow) / 2, toCol] : null;
+        }
+        fr = Math.max(0, Math.min(7, fr));
+      } else {
+        this.ep = null;
+        loop: for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
+          if (b[r][c] !== pc) continue;
+          if (dF !== null && c !== dF) continue;
+          if (dR !== null && r !== dR) continue;
+          if (this._reach(b, pt, r, c, toRow, toCol)) {fr = r;fc = c;break loop;}
+        }
+      }
+      if (fr < 0) {console.warn('No piece for move:', san, pc);return;}
+      to = [toRow, toCol];from = [fr, fc];
+      b[toRow][toCol] = promo ? w ? promo.toUpperCase() : promo.toLowerCase() : pc;
+      b[fr][fc] = null;
+    }
+    this.lastMove = { from, to };this.board = b;this.turn = w ? 'b' : 'w';
+  }
+  _reach(b, pt, fr, fc, tr, tc) {
+    const dr = tr - fr,dc = tc - fc;
+    if (pt === 'N') return Math.abs(dr) === 2 && Math.abs(dc) === 1 || Math.abs(dr) === 1 && Math.abs(dc) === 2;
+    if (pt === 'K') return Math.abs(dr) <= 1 && Math.abs(dc) <= 1;
+    if (pt === 'B' && Math.abs(dr) !== Math.abs(dc)) return false;
+    if (pt === 'R' && dr !== 0 && dc !== 0) return false;
+    if (pt === 'Q' && dr !== 0 && dc !== 0 && Math.abs(dr) !== Math.abs(dc)) return false;
+    const sr = Math.sign(dr),sc = Math.sign(dc);let r = fr + sr,c = fc + sc;
+    while (r !== tr || c !== tc) {if (b[r]?.[c] != null) return false;r += sr;c += sc;}
+    return true;
+  }
+}
+
+// ── Chess Navigator ───────────────────────────────────
+const GLYPHS = { 'K': '♔', 'Q': '♕', 'R': '♖', 'B': '♗', 'N': '♘', 'P': '♙', 'k': '♚', 'q': '♛', 'r': '♜', 'b': '♝', 'n': '♞', 'p': '♟' };
+
+function ChessNavigator({ pgn, result, orientation = 'white' }) {
+  const moves = React.useMemo(() => pgn.trim().split(/\s+/).filter((t) => t.length > 0 && !/^\d+\./.test(t)), [pgn]);
+  const states = React.useMemo(() => {
+    const eng = new ChessEngine();
+    const ss = [{ board: eng.board.map((r) => [...r]), lastMove: null }];
+    for (const m of moves) {try {eng.move(m);} catch (e) {console.warn(e);}ss.push({ board: eng.board.map((r) => [...r]), lastMove: eng.lastMove });}
+    return ss;
+  }, [pgn]);
+
+  const [idx, setIdx] = useState(0);
+  const { board, lastMove } = states[Math.min(idx, states.length - 1)];
+  const flip = orientation === 'black';
+
+  useEffect(() => {
+    const h = (e) => {if (e.key === 'ArrowLeft') setIdx((i) => Math.max(0, i - 1));if (e.key === 'ArrowRight') setIdx((i) => Math.min(states.length - 1, i + 1));};
+    window.addEventListener('keydown', h);return () => window.removeEventListener('keydown', h);
+  }, [states.length]);
+
+  const SQ = 26;
+  const rows = flip ? [7, 6, 5, 4, 3, 2, 1, 0] : [0, 1, 2, 3, 4, 5, 6, 7];
+  const cols = flip ? [7, 6, 5, 4, 3, 2, 1, 0] : [0, 1, 2, 3, 4, 5, 6, 7];
+  const files = 'abcdefgh';
+  const ranks = '87654321';
+
+  const movePairs = [];
+  for (let i = 0; i < moves.length; i += 2) movePairs.push({ num: Math.floor(i / 2) + 1, w: moves[i], b: moves[i + 1] || null, wi: i + 1, bi: i + 2 });
+
+  const btnStyle = (disabled) => ({ background: 'none', border: 'none', cursor: disabled ? 'default' : 'pointer', color: disabled ? 'var(--rule)' : 'var(--text-muted)', fontSize: '0.72rem', padding: '4px 6px', fontFamily: 'var(--font-sans)', fontWeight: 300 });
+
+  return (
+    <div className="chess-wrap" style={{ display: 'flex', gap: 28, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+      <div style={{ flexShrink: 0 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: `16px repeat(8,${SQ}px)`, gridTemplateRows: `repeat(8,${SQ}px) 16px`, gap: 0 }}>
+          {rows.map((row, ri) => [
+          <div key={`rank-${ri}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', color: 'var(--text-muted)', fontFamily: 'var(--font-sans)' }}>{flip ? ri + 1 : 8 - ri}</div>,
+          ...cols.map((col, ci) => {
+            const piece = board[row][col];
+            const isFrom = lastMove?.from[0] === row && lastMove?.from[1] === col;
+            const isTo = lastMove?.to[0] === row && lastMove?.to[1] === col;
+            const light = (row + col) % 2 === 0;
+            return (
+              <div key={`${row}-${col}`} style={{ width: SQ, height: SQ, background: isFrom || isTo ? 'var(--accent-light)' : light ? 'var(--bg)' : 'var(--bg2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: SQ * 0.7, lineHeight: 1, userSelect: 'none', position: 'relative', cursor: 'default', border: isTo ? '1px solid var(--accent)' : 'none' }}>
+                  {isTo && <div style={{ position: 'absolute', inset: 0, background: 'var(--accent)', opacity: 0.15 }} />}
+                  <span style={{ position: 'relative', color: piece && piece === piece.toUpperCase() ? 'var(--text)' : 'var(--accent)', textShadow: piece && piece === piece.toUpperCase() ? '0 0 1px rgba(0,0,0,0.3)' : 'none' }}>{piece ? GLYPHS[piece] : ''}</span>
+                </div>);
+
+          })]
+          )}
+          <div />
+          {cols.map((col, ci) =>
+          <div key={`file-${ci}`} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: 3, fontSize: '0.6rem', color: 'var(--text-muted)', fontFamily: 'var(--font-sans)' }}>{files[col]}</div>
+          )}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, gap: 4 }}>
+          <button style={btnStyle(idx === 0)} onClick={() => setIdx(0)} disabled={idx === 0}>⟨⟨</button>
+          <button style={btnStyle(idx === 0)} onClick={() => setIdx((i) => Math.max(0, i - 1))} disabled={idx === 0}>‹ Prev</button>
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 300, minWidth: 50, textAlign: 'center' }}>{idx} / {moves.length}</span>
+          <button style={btnStyle(idx >= states.length - 1)} onClick={() => setIdx((i) => Math.min(states.length - 1, i + 1))} disabled={idx >= states.length - 1}>Next ›</button>
+          <button style={btnStyle(idx >= states.length - 1)} onClick={() => setIdx(states.length - 1)} disabled={idx >= states.length - 1}>⟩⟩</button>
+        </div>
+        <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textAlign: 'center', marginTop: 4, opacity: 0.5 }}>← → keys to navigate</div>
+      </div>
+
+      <div className="chess-movelist" style={{ flex: 1, minWidth: 160, maxHeight: SQ * 8 + 16, overflowY: 'auto' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr 1fr', gap: '1px 4px', fontSize: '0.75rem', fontFamily: 'monospace' }}>
+          {movePairs.map(({ num, w, b, wi, bi }) =>
+          <React.Fragment key={num}>
+              <span style={{ color: 'var(--text-muted)', opacity: 0.45, textAlign: 'right', padding: '2px 4px' }}>{num}.</span>
+              <span onClick={() => setIdx(wi)} style={{ cursor: 'pointer', padding: '2px 5px', borderRadius: 2, background: idx === wi ? 'var(--accent-light)' : 'none', color: idx === wi ? 'var(--accent)' : 'var(--text-muted)', fontWeight: idx === wi ? 500 : 300 }}>{w}</span>
+              {b ? <span onClick={() => setIdx(bi)} style={{ cursor: 'pointer', padding: '2px 5px', borderRadius: 2, background: idx === bi ? 'var(--accent-light)' : 'none', color: idx === bi ? 'var(--accent)' : 'var(--text-muted)', fontWeight: idx === bi ? 500 : 300 }}>{b}</span> : <span />}
+            </React.Fragment>
+          )}
+        </div>
+        <div style={{ marginTop: 10, fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 500, letterSpacing: '0.04em' }}>{result}</div>
+      </div>
+    </div>);
+
+}
+
+// ── BLOG ──────────────────────────────────────────────
+const BLOG_CATEGORIES = [
+{ id: 'chess', label: 'Chess Games', count: CHESS_GAMES.length }
+];
+
+function BlogPage() {
+  const [open, setOpen] = useState(null);
+  const [cat, setCat] = useState('chess');
+
+  return (
+    <div>
+      <Label>Blog</Label>
+      <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: '3rem', fontWeight: 300, lineHeight: 1.1, marginBottom: 12 }}>
+        Things I find<br /><em style={{ fontStyle: 'italic', color: 'var(--accent)' }}>worth writing down.</em>
+      </h1>
+      <p style={{ color: 'var(--text-muted)', fontWeight: 300, marginBottom: 40, maxWidth: 460, lineHeight: 1.75 }}>
+        Chess games for now. More to come when I get around to writing it.
+      </p>
+
+      <div style={{ display: 'flex', gap: 0, marginBottom: 44, borderBottom: '1px solid var(--rule)' }}>
+        {BLOG_CATEGORIES.map((c) =>
+        <button key={c.id} onClick={() => {setCat(c.id);setOpen(null);}} style={{
+          background: 'none', border: 'none', cursor: 'pointer', padding: '10px 20px 10px 0',
+          fontFamily: 'var(--font-sans)', fontSize: '0.78rem', letterSpacing: '0.1em', textTransform: 'uppercase',
+          fontWeight: cat === c.id ? 500 : 300,
+          color: cat === c.id ? 'var(--accent)' : 'var(--text-muted)',
+          borderBottom: cat === c.id ? '2px solid var(--accent)' : '2px solid transparent',
+          marginBottom: '-1px', transition: 'color 0.2s, border-color 0.2s'
+        }}>
+            {c.label} <span style={{ fontSize: '0.65rem', opacity: 0.6 }}>({c.count})</span>
+          </button>
+        )}
+        <button style={{
+          background: 'none', border: 'none', cursor: 'default', padding: '10px 20px 10px 0',
+          fontFamily: 'var(--font-sans)', fontSize: '0.78rem', letterSpacing: '0.1em', textTransform: 'uppercase',
+          fontWeight: 300, color: 'var(--text-muted)', opacity: 0.4,
+          borderBottom: '2px solid transparent', marginBottom: '-1px'
+        }}>More soon</button>
+      </div>
+
+      {cat === 'chess' &&
+      <div>
+          {CHESS_GAMES.map((g, i) => {
+          const isOpen = open === g.id;
+          return (
+            <div key={g.id} style={{ borderTop: '1px solid var(--rule)' }}>
+                <button onClick={() => setOpen(isOpen ? null : g.id)} style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: '26px 0', display: 'flex', alignItems: 'center', gap: 20 }}>
+                  <span style={{ fontFamily: 'var(--font-serif)', fontSize: '0.85rem', color: 'var(--text-muted)', fontStyle: 'italic', minWidth: 24 }}>{String(i + 1).padStart(2, '0')}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 3, flexWrap: 'wrap' }}>
+                      <span style={{ fontFamily: 'var(--font-serif)', fontSize: '1.2rem', fontWeight: 600, color: 'var(--text)' }}>{g.white} <span style={{ fontWeight: 300 }}>vs</span> {g.black}</span>
+                      <span style={{ fontSize: '0.68rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: g.result === '1-0' && g.white === 'NotSA' || g.result === '0-1' && g.black === 'NotSA' ? 'var(--accent)' : 'var(--text-muted)', fontWeight: 500 }}>{g.result === '1-0' && g.white === 'NotSA' || g.result === '0-1' && g.black === 'NotSA' ? 'Win' : 'Loss'}</span>
+                    </div>
+                    <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 300 }}>{g.opening} · {g.date}</div>
+                  </div>
+                  <div style={{ fontSize: '1.1rem', color: 'var(--text-muted)', transform: isOpen ? 'rotate(45deg)' : 'none', transition: 'transform 0.25s ease', lineHeight: 1 }}>+</div>
+                </button>
+                {isOpen &&
+              <div style={{ paddingBottom: 36, animation: 'fadeUp 0.25s ease' }}>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 300, marginBottom: 6 }}>{g.elo}</div>
+                    <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', fontStyle: 'italic', fontWeight: 300, lineHeight: 1.75, marginBottom: 20, maxWidth: 500 }}>{g.note}</p>
+                    <ChessNavigator pgn={g.pgn} result={g.result} orientation={g.result === '0-1' ? 'black' : 'white'} />
+                  </div>
+              }
+              </div>);
+
+        })}
+          <div style={{ borderTop: '1px solid var(--rule)' }} />
+        </div>
+      }
+    </div>);
+
+}
+
+// ── CONTACT ───────────────────────────────────────────
+function ContactPage() {
+  const links = [
+  { name: 'GitHub', handle: '@NotShivang', desc: 'Source code and open source', url: 'https://github.com/NotShivang',
+    icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" /></svg> },
+  { name: 'LinkedIn', handle: 'Shivang Arya', desc: 'Professional background', url: 'https://www.linkedin.com/in/shivangarya/',
+    icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" /><rect x="2" y="9" width="4" height="12" /><circle cx="4" cy="4" r="2" /></svg> }];
+
+  return (
+    <div>
+      <Label>Contact</Label>
+      <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: '3rem', fontWeight: 300, lineHeight: 1.1, marginBottom: 12 }}>
+        Say hello.
+      </h1>
+      <p style={{ color: 'var(--text-muted)', fontWeight: 300, marginBottom: 52, maxWidth: 440, lineHeight: 1.75 }}>
+        I'm not hard to find.
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        {links.map((l) =>
+        <a key={l.url} href={l.url} target="_blank" rel="noopener" style={{ display: 'flex', alignItems: 'center', gap: 22, padding: '26px 22px', background: 'var(--bg2)', textDecoration: 'none', color: 'var(--text)', borderLeft: '2px solid transparent', transition: 'background 0.2s, border-color 0.2s' }}
+        onMouseEnter={(e) => {e.currentTarget.style.background = 'var(--accent-light)';e.currentTarget.style.borderLeftColor = 'var(--accent)';}}
+        onMouseLeave={(e) => {e.currentTarget.style.background = 'var(--bg2)';e.currentTarget.style.borderLeftColor = 'transparent';}}>
+            <div style={{ color: 'var(--accent)' }}>{l.icon}</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: 'var(--font-serif)', fontSize: '1.2rem', fontWeight: 600, marginBottom: 3 }}>{l.name}</div>
+              <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 300 }}>{l.handle} · {l.desc}</div>
+            </div>
+            <div style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>→</div>
+          </a>
+        )}
+      </div>
+    </div>);
+
+}
+
+// ── App ───────────────────────────────────────────────
+function App() {
+  const [route, go] = useRoute();
+  const pages = { home: HomePage, about: AboutPage, projects: ProjectsPage, blog: BlogPage, contact: ContactPage };
+  const Active = pages[route] || HomePage;
+  return (
+    <>
+      <Sidebar route={route} go={go} />
+      <Page route={route}><Active go={go} /></Page>
+    </>);
+
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
