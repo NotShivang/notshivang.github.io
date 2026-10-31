@@ -1,0 +1,724 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- No network access at all: the chat file never leaves the browser. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="theme-color" content="#008069">
+<title>Chat Reader</title>
+<style>
+:root {
+  --hdr: #008069; --hdr-ink: #ffffff; --hdr-muted: rgba(255,255,255,.8);
+  --bg: #efeae2; --panel: #ffffff; --ink: #111b21; --muted: #667781; --line: #e9edef;
+  --in: #ffffff; --out: #d9fdd3; --day: #ffffff; --sys: #ffeecd; --sys-ink: #54656f;
+  --accent: #008069; --mark: #ffd84d; --hit: rgba(0,128,105,.18); --hover: #f5f6f6;
+  --shadow: 0 1px .5px rgba(11,20,26,.13);
+  --tick: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 11'%3E%3Cpath d='M1 5.6l3 3 6.6-7.2M6.3 8.6l1 .9 6.6-7.2' fill='none' stroke='%2353bdeb' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --doodle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' fill='none' stroke='%23000' stroke-opacity='.055' stroke-width='1.5' stroke-linecap='round'%3E%3Ccircle cx='20' cy='24' r='6'/%3E%3Cpath d='M60 18l8 8-8 8-8-8z'/%3E%3Cpath d='M110 16c6 0 10 4 10 10s-10 14-10 14-10-8-10-14 4-10 10-10z'/%3E%3Cpath d='M24 80h20M34 70v20'/%3E%3Ccircle cx='86' cy='86' r='10'/%3E%3Cpath d='M130 76l10 18h-20z'/%3E%3Cpath d='M16 132q10-12 20 0t20 0'/%3E%3Crect x='76' y='124' width='18' height='14' rx='3'/%3E%3Cpath d='M126 130l6 6 12-12'/%3E%3C/svg%3E");
+  --p0: #c4532d; --p1: #1f7bc1; --p2: #9c3fc4; --p3: #078b5a; --p4: #b5700b; --p5: #c22e7b; --p6: #078c9c; --p7: #6e56cf;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --hdr: #202c33; --hdr-ink: #e9edef; --hdr-muted: #8696a0;
+    --bg: #0b141a; --panel: #111b21; --ink: #e9edef; --muted: #8696a0; --line: #222d34;
+    --in: #202c33; --out: #005c4b; --day: #182229; --sys: #182229; --sys-ink: #ffd279;
+    --accent: #00a884; --mark: #9a7a12; --hit: rgba(0,168,132,.22); --hover: #202c33;
+    --shadow: 0 1px .5px rgba(0,0,0,.25);
+    --doodle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' fill='none' stroke='%23fff' stroke-opacity='.035' stroke-width='1.5' stroke-linecap='round'%3E%3Ccircle cx='20' cy='24' r='6'/%3E%3Cpath d='M60 18l8 8-8 8-8-8z'/%3E%3Cpath d='M110 16c6 0 10 4 10 10s-10 14-10 14-10-8-10-14 4-10 10-10z'/%3E%3Cpath d='M24 80h20M34 70v20'/%3E%3Ccircle cx='86' cy='86' r='10'/%3E%3Cpath d='M130 76l10 18h-20z'/%3E%3Cpath d='M16 132q10-12 20 0t20 0'/%3E%3Crect x='76' y='124' width='18' height='14' rx='3'/%3E%3Cpath d='M126 130l6 6 12-12'/%3E%3C/svg%3E");
+    --p0: #f0866a; --p1: #53a6fd; --p2: #d18cf5; --p3: #25d366; --p4: #ffbc38; --p5: #fd85c4; --p6: #42c7b8; --p7: #a791ff;
+  }
+}
+:root[data-theme="dark"] {
+  --hdr: #202c33; --hdr-ink: #e9edef; --hdr-muted: #8696a0;
+  --bg: #0b141a; --panel: #111b21; --ink: #e9edef; --muted: #8696a0; --line: #222d34;
+  --in: #202c33; --out: #005c4b; --day: #182229; --sys: #182229; --sys-ink: #ffd279;
+  --accent: #00a884; --mark: #9a7a12; --hit: rgba(0,168,132,.22); --hover: #202c33;
+  --shadow: 0 1px .5px rgba(0,0,0,.25);
+  --doodle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' fill='none' stroke='%23fff' stroke-opacity='.035' stroke-width='1.5' stroke-linecap='round'%3E%3Ccircle cx='20' cy='24' r='6'/%3E%3Cpath d='M60 18l8 8-8 8-8-8z'/%3E%3Cpath d='M110 16c6 0 10 4 10 10s-10 14-10 14-10-8-10-14 4-10 10-10z'/%3E%3Cpath d='M24 80h20M34 70v20'/%3E%3Ccircle cx='86' cy='86' r='10'/%3E%3Cpath d='M130 76l10 18h-20z'/%3E%3Cpath d='M16 132q10-12 20 0t20 0'/%3E%3Crect x='76' y='124' width='18' height='14' rx='3'/%3E%3Cpath d='M126 130l6 6 12-12'/%3E%3C/svg%3E");
+  --p0: #f0866a; --p1: #53a6fd; --p2: #d18cf5; --p3: #25d366; --p4: #ffbc38; --p5: #fd85c4; --p6: #42c7b8; --p7: #a791ff;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; margin: 0; }
+body {
+  height: 100dvh; background: var(--bg); color: var(--ink);
+  font: 14.5px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, sans-serif;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+button, input, select { font: inherit; color: inherit; }
+[hidden] { display: none !important; }
+svg { display: block; }
+
+/* ---------- Landing ---------- */
+#landing { flex: 1; overflow-y: auto; display: grid; place-items: center; padding: 32px 16px; background: var(--bg) var(--doodle); }
+.card { width: 100%; max-width: 480px; background: var(--panel); border-radius: 16px; padding: 28px 22px; box-shadow: var(--shadow); text-align: center; }
+.logo { width: 56px; height: 56px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; margin: 0 auto 12px; }
+.card h1 { font-size: 24px; margin: 0 0 4px; }
+.card > p { color: var(--muted); margin: 0 0 20px; }
+#drop {
+  border: 2px dashed var(--line); border-radius: 12px; padding: 28px 16px; cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+#drop:hover, #drop:focus-visible, body.dragging #drop { border-color: var(--accent); background: var(--hit); outline: none; }
+#drop strong { display: block; font-size: 16px; margin-bottom: 2px; }
+#drop span { color: var(--muted); font-size: 13px; }
+.pill { display: inline-block; margin-top: 14px; background: var(--accent); color: #fff; border-radius: 999px; padding: 9px 20px; font-weight: 600; }
+#err { color: #e0453a; min-height: 1.3em; margin: 12px 0 0; font-size: 14px; }
+.fine { color: var(--muted); font-size: 13px; text-align: left; line-height: 1.5; border-top: 1px solid var(--line); margin-top: 8px; padding-top: 6px; }
+.fine b { color: var(--ink); font-weight: 600; }
+
+/* ---------- Header ---------- */
+header {
+  background: var(--hdr); color: var(--hdr-ink); flex: none; position: relative; z-index: 10;
+  padding: env(safe-area-inset-top) max(8px, env(safe-area-inset-right)) 0 max(8px, env(safe-area-inset-left));
+}
+.row { height: 60px; display: flex; align-items: center; gap: 4px; }
+.avatar {
+  width: 40px; height: 40px; border-radius: 50%; flex: none; display: grid; place-items: center;
+  font-weight: 600; font-size: 15px; color: #fff; margin: 0 6px 0 4px;
+}
+.who { flex: 1; min-width: 0; cursor: pointer; padding: 4px 0; }
+.who h2 { font-size: 16px; font-weight: 500; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.who p { font-size: 12.5px; color: var(--hdr-muted); margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ib {
+  width: 40px; height: 40px; border: 0; border-radius: 50%; background: none; color: inherit;
+  display: grid; place-items: center; cursor: pointer; flex: none; position: relative;
+}
+.ib:hover { background: rgba(255,255,255,.12); }
+.ib:disabled { opacity: .35; cursor: default; background: none; }
+#datepick { position: absolute; inset: 0; opacity: 0; pointer-events: none; width: 100%; }
+#searchrow input {
+  flex: 1; min-width: 0; height: 38px; border: 0; border-radius: 8px; padding: 0 12px; outline: none;
+  background: var(--panel); color: var(--ink);
+}
+#count { font-size: 13px; color: var(--hdr-muted); min-width: 48px; text-align: center; }
+
+.menu {
+  position: absolute; right: 8px; top: calc(env(safe-area-inset-top) + 54px); background: var(--panel); color: var(--ink);
+  border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.2); padding: 6px 0; min-width: 210px; z-index: 20;
+}
+.menu button { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 11px 20px; cursor: pointer; }
+.menu button:hover { background: var(--hover); }
+
+/* ---------- Chat ---------- */
+#chat { flex: 1; overflow-y: auto; overscroll-behavior: contain; background: var(--bg) var(--doodle); }
+.wrap { max-width: 1000px; margin: 0 auto; padding: 4px max(6px, env(safe-area-inset-right)) 28px max(6px, env(safe-area-inset-left)); }
+/* content-visibility clips paint to the section, so pad it to leave room for bubble tails. */
+.day { content-visibility: auto; contain-intrinsic-size: auto 600px; padding: 0 10px; }
+.day > h3 { position: sticky; top: 8px; z-index: 2; text-align: center; margin: 10px 0 8px; font-size: 12.5px; font-weight: 500; pointer-events: none; }
+.day > h3 span { background: var(--day); color: var(--muted); border-radius: 8px; padding: 5px 12px; box-shadow: var(--shadow); text-transform: uppercase; letter-spacing: .02em; }
+
+.m { display: flex; margin-top: 10px; padding: 0 0; }
+.m.c { margin-top: 2px; }
+.b {
+  max-width: min(65%, 620px); background: var(--in); border-radius: 8px;
+  padding: 6px 7px 8px 9px; box-shadow: var(--shadow); position: relative; overflow-wrap: anywhere;
+}
+.m:not(.c) .b { border-top-left-radius: 0; }
+.m:not(.c) .b::before {
+  content: ""; position: absolute; top: 0; left: -8px; width: 8px; height: 13px;
+  background: inherit; clip-path: polygon(0 0, 100% 0, 100% 100%);
+}
+.n { font-size: 12.8px; font-weight: 600; margin-bottom: 2px; }
+.hide-names .n { display: none; }
+.x { white-space: pre-wrap; display: inline; }
+.x a { color: #027eb5; text-decoration: none; }
+.x a:hover { text-decoration: underline; }
+:root[data-theme="dark"] .x a { color: #53bdeb; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .x a { color: #53bdeb; } }
+.x code { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.tg { visibility: hidden; display: inline-block; font-size: 11px; padding-left: 12px; }
+.t { position: absolute; right: 7px; bottom: 3px; font-size: 11px; color: var(--muted); white-space: nowrap; display: flex; align-items: center; gap: 3px; }
+.tk { display: none; width: 16px; height: 11px; background: var(--tick) no-repeat center / contain; }
+.meta { font-style: italic; color: var(--muted); }
+.file {
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px; margin: 0 0 4px;
+  border-radius: 6px; background: rgba(127,127,127,.12); white-space: normal; min-width: 200px;
+}
+.file .fi { width: 30px; height: 36px; border-radius: 4px; flex: none; display: grid; place-items: end center; color: #fff; font-size: 9px; font-weight: 700; padding-bottom: 4px; text-transform: uppercase; background: #8696a0; }
+.file small { color: var(--muted); display: block; font-size: 11.5px; }
+.sys { justify-content: center; margin: 10px 0; }
+.sys .b { background: var(--sys); color: var(--sys-ink); text-align: center; font-size: 12.5px; max-width: 90%; border-radius: 8px; padding: 5px 12px; }
+.sys .b::before { display: none; }
+mark { background: var(--mark); color: inherit; border-radius: 2px; }
+.hit .b { animation: flash 1.6s ease-out; }
+@keyframes flash { 0%, 40% { box-shadow: 0 0 0 3px var(--mark); } 100% { box-shadow: var(--shadow); } }
+
+#jump {
+  position: fixed; right: max(18px, env(safe-area-inset-right)); bottom: max(18px, env(safe-area-inset-bottom)); z-index: 5;
+  width: 42px; height: 42px; border-radius: 50%; border: 0; background: var(--panel); color: var(--muted);
+  box-shadow: 0 2px 6px rgba(11,20,26,.25); cursor: pointer; display: grid; place-items: center;
+}
+
+/* ---------- Info sheet ---------- */
+#scrim { position: fixed; inset: 0; background: rgba(11,20,26,.45); z-index: 30; display: flex; justify-content: flex-end; }
+#info {
+  width: min(420px, 100%); height: 100%; background: var(--bg); overflow-y: auto; display: flex; flex-direction: column;
+  padding-bottom: env(safe-area-inset-bottom); animation: slide .2s ease-out;
+}
+@keyframes slide { from { transform: translateX(30px); opacity: 0; } }
+#info .row { background: var(--hdr); color: var(--hdr-ink); padding: env(safe-area-inset-top) 8px 0; height: auto; min-height: 60px; flex: none; }
+#info .row h2 { font-size: 17px; font-weight: 500; margin: 0 0 0 8px; }
+.sec { background: var(--panel); margin-bottom: 10px; padding: 16px 20px; }
+.sec h4 { margin: 0 0 10px; font-size: 13px; font-weight: 500; color: var(--accent); }
+.hero { text-align: center; padding: 24px 20px; }
+.hero .avatar { width: 96px; height: 96px; font-size: 34px; margin: 0 auto 12px; }
+.hero h3 { margin: 0; font-size: 20px; font-weight: 500; }
+.hero p { margin: 4px 0 0; color: var(--muted); }
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.stats div { font-size: 12.5px; color: var(--muted); }
+.stats b { display: block; font-size: 17px; color: var(--ink); font-weight: 500; }
+.opt { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 0; border: 0; background: none; cursor: pointer; text-align: left; }
+.opt .avatar { width: 40px; height: 40px; margin: 0; font-size: 15px; }
+.opt .who2 { flex: 1; min-width: 0; }
+.opt .who2 div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.opt .who2 small { color: var(--muted); font-size: 12.5px; }
+.bar { height: 4px; border-radius: 2px; background: var(--line); margin-top: 5px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--accent); }
+.radio { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--muted); flex: none; }
+.opt[aria-checked="true"] .radio { border-color: var(--accent); box-shadow: inset 0 0 0 4px var(--panel); background: var(--accent); }
+
+@media (max-width: 640px) {
+  .b { max-width: 85%; }
+  .wrap { padding-left: max(2px, env(safe-area-inset-left)); padding-right: max(2px, env(safe-area-inset-right)); }
+  .who p { font-size: 12px; }
+}
+</style>
+</head>
+<body>
+
+<section id="landing">
+  <div class="card">
+    <div class="logo"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z"/></svg></div>
+    <h1>Chat Reader</h1>
+    <p>Open an exported WhatsApp chat and read it like the app.</p>
+    <div id="drop" tabindex="0" role="button" aria-label="Choose a chat export">
+      <strong>Drop your chat .txt here</strong>
+      <span>or tap to choose a file · up to 10 MB</span><br>
+      <span class="pill">Choose file</span>
+    </div>
+    <p id="err" role="alert"></p>
+    <div class="fine">
+      <p><b>Private by design.</b> The file is read in your browser and never uploaded. This page is blocked from making any network requests, and nothing is kept once you close the tab.</p>
+      <p><b>How to export:</b> in WhatsApp, open the chat → contact name or ⋮ → <i>Export chat</i> → <i>Without media</i>. If you get a .zip, unzip it and choose the .txt inside.</p>
+    </div>
+  </div>
+</section>
+
+<header id="bar" hidden>
+  <div class="row" id="mainrow">
+    <div class="avatar" id="av"></div>
+    <div class="who" id="whoBtn" role="button" tabindex="0" title="Chat info">
+      <h2 id="name"></h2><p id="sub"></p>
+    </div>
+    <button class="ib" id="swap" title="Switch perspective" aria-label="Switch perspective">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4L3 8l4 4"/><path d="M3 8h13"/><path d="M17 20l4-4-4-4"/><path d="M21 16H8"/></svg>
+    </button>
+    <button class="ib" id="cal" title="Jump to date" aria-label="Jump to date">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
+      <input type="date" id="datepick" tabindex="-1" aria-hidden="true">
+    </button>
+    <button class="ib" id="searchBtn" title="Search (Ctrl/⌘+F)" aria-label="Search">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+    </button>
+    <button class="ib" id="menuBtn" title="More" aria-label="More options" aria-haspopup="true">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+    </button>
+  </div>
+  <div class="row" id="searchrow" hidden>
+    <button class="ib" id="searchBack" title="Close search" aria-label="Close search">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+    </button>
+    <input id="q" type="search" placeholder="Search…" aria-label="Search messages" enterkeyhint="search" autocomplete="off">
+    <span id="count"></span>
+    <button class="ib" id="prev" title="Previous (Shift+Enter)" aria-label="Previous match">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>
+    </button>
+    <button class="ib" id="next" title="Next (Enter)" aria-label="Next match">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+  </div>
+  <div class="menu" id="menu" hidden role="menu">
+    <button role="menuitem" data-act="info">Chat info</button>
+    <button role="menuitem" data-act="view">View as…</button>
+    <button role="menuitem" data-act="date">Go to date</button>
+    <button role="menuitem" data-act="top">Go to first message</button>
+    <button role="menuitem" data-act="theme" id="themeItem">Theme: Auto</button>
+    <button role="menuitem" data-act="open">Open another chat</button>
+  </div>
+</header>
+
+<main id="chat" hidden><div class="wrap" id="log"></div></main>
+<button id="jump" hidden title="Jump to latest" aria-label="Jump to latest">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+</button>
+
+<div id="scrim" hidden>
+  <aside id="info" role="dialog" aria-modal="true" aria-label="Chat info">
+    <div class="row">
+      <button class="ib" id="infoClose" aria-label="Close">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+      <h2>Chat info</h2>
+    </div>
+    <div id="infoBody"></div>
+  </aside>
+</div>
+
+<input type="file" id="file" accept=".txt,text/plain" hidden>
+<style id="me-style"></style>
+
+<script>
+const MAX_BYTES = 10 * 1024 * 1024;
+const $ = id => document.getElementById(id);
+
+// ---------- Parsing ----------
+// Android: "19/11/2024, 14:32 - Name: text"   iOS: "[19/11/24, 14:32:10] Name: text"
+// Dates may be D/M/Y, M/D/Y or Y/M/D; times may be 12h with AM/PM.
+const DATE = String.raw`(\d{1,4})[\/.\-](\d{1,2})[\/.\-](\d{1,4}),?\s+(\d{1,2})[:.](\d{2})(?:[:.](\d{2}))?\s*([ap]\.?\s?m\.?)?`;
+const ANDROID = new RegExp(String.raw`^${DATE}\s+[-–]\s+([\s\S]*)$`, 'i');
+const IOS = new RegExp(String.raw`^‎?\[${DATE}\]\s+([\s\S]*)$`, 'i');
+
+function matchHeader(line) { return ANDROID.exec(line) || IOS.exec(line); }
+
+function detectOrder(heads) {
+  let dmy = false, mdy = false;
+  for (const h of heads) {
+    if (h[1].length === 4) return 'ymd';
+    if (+h[1] > 12) dmy = true;
+    if (+h[2] > 12) mdy = true;
+  }
+  if (dmy && !mdy) return 'dmy';
+  if (mdy && !dmy) return 'mdy';
+  return /^en-US$/i.test(navigator.language) ? 'mdy' : 'dmy';
+}
+
+function toDate(h, order) {
+  const [a, b, c] = [+h[1], +h[2], +h[3]];
+  let y, mo, d;
+  if (order === 'ymd') [y, mo, d] = [a, b, c];
+  else if (order === 'mdy') [mo, d, y] = [a, b, c];
+  else [d, mo, y] = [a, b, c];
+  if (y < 100) y += 2000;
+  let hr = +h[4];
+  if (h[7]) hr = (hr % 12) + (/^p/i.test(h[7]) ? 12 : 0);
+  return new Date(y, mo - 1, d, hr, +h[5], +(h[6] || 0));
+}
+
+const EDITED = /\s*‎?<This message was edited>\s*$/;
+
+function classify(raw) {
+  const out = { kind: 'text', text: raw, edited: false };
+  let t = raw;
+  if (EDITED.test(t)) { out.edited = true; t = t.replace(EDITED, ''); }
+  const lrm = t.startsWith('‎');
+  t = t.replace(/[‎‏]/g, '');
+  let m;
+  if (/^<Media omitted>$/i.test(t)) Object.assign(out, { kind: 'meta', icon: 'media', text: 'Media omitted' });
+  else if ((m = /^(image|video|audio|sticker|GIF|document|Contact card) omitted$/i.exec(t))) Object.assign(out, { kind: 'meta', icon: 'media', text: m[1][0].toUpperCase() + m[1].slice(1).toLowerCase() + ' omitted' });
+  else if ((m = /^<attached: ([^>]+)>\s*([\s\S]*)$/.exec(t))) Object.assign(out, { kind: 'file', file: m[1], text: m[2] });
+  else if ((m = /^(.+?) \(file attached\)\n?([\s\S]*)$/.exec(t))) Object.assign(out, { kind: 'file', file: m[1], text: m[2].trim() === m[1].trim() ? '' : m[2] });
+  else if (/^(This message was deleted|You deleted this message)\.?$/i.test(t)) Object.assign(out, { kind: 'meta', icon: 'deleted', text: 'This message was deleted' });
+  else if (t === 'null') Object.assign(out, { kind: 'meta', icon: 'media', text: 'View-once media' });
+  else if (t.trim() === '') Object.assign(out, { kind: 'meta', icon: 'media', text: 'Sticker, poll or unsupported message' });
+  else if (lrm) Object.assign(out, { kind: 'system', text: t });
+  else out.text = t;
+  return out;
+}
+
+function parse(text) {
+  const lines = text.replace(/^﻿/, '').replace(/[  ]/g, ' ').split(/\r?\n/);
+  const heads = [], raw = [];
+  for (const line of lines) {
+    const h = matchHeader(line);
+    if (h) { heads.push(h); raw.push({ h, body: h[8] }); }
+    else if (raw.length) raw[raw.length - 1].body += '\n' + line;
+  }
+  if (!raw.length) return null;
+  const order = detectOrder(heads);
+  const index = new Map(), senders = [], msgs = [];
+  for (const { h, body } of raw) {
+    const date = toDate(h, order);
+    if (isNaN(date)) continue;
+    const rest = body.replace(/^‎/, '');
+    let sender = null, content = rest;
+    const i = rest.indexOf(': ');
+    if (i > 0 && i < 80 && !/["“]/.test(rest.slice(0, i))) { sender = rest.slice(0, i); content = rest.slice(i + 2); }
+    else if (/^[^:\n]{1,80}:$/.test(rest)) { sender = rest.slice(0, -1); content = ''; }
+    const c = sender === null ? { kind: 'system', text: rest.replace(/[‎‏]/g, '') } : classify(content);
+    let s = -1;
+    if (c.kind !== 'system') {
+      if (!index.has(sender)) { index.set(sender, senders.length); senders.push({ name: sender, count: 0 }); }
+      s = index.get(sender);
+      senders[s].count++;
+    }
+    c.text = c.text.replace(/\n+$/, '');
+    msgs.push({ date, s, ...c });
+  }
+  return { msgs, senders };
+}
+
+// ---------- Rendering ----------
+const fmtTime = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
+const fmtDay = new Intl.DateTimeFormat(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+const fmtShort = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+const dayKey = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const esc = s => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const initials = name => (name.replace(/[^\p{L}\p{N}\s]/gu, '').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('') || '#').toUpperCase();
+
+const URL_RE = /\b(?:https?:\/\/|www\.)[^\s<>"]+[^\s<>".,:;!?)\]'’]/gi;
+
+function formatText(s) {
+  s = esc(s);
+  s = s.replace(/```([\s\S]+?)```/g, '<code>$1</code>');
+  s = s.replace(/(^|[^\w*])\*(?=\S)([^*\n]+?)(?<=\S)\*(?!\w)/g, '$1<b>$2</b>');
+  s = s.replace(/(^|[^\w_])_(?=\S)([^_\n]+?)(?<=\S)_(?!\w)/g, '$1<i>$2</i>');
+  s = s.replace(/(^|[^\w~])~(?=\S)([^~\n]+?)(?<=\S)~(?!\w)/g, '$1<s>$2</s>');
+  return s;
+}
+
+function richText(s) {
+  let out = '', last = 0;
+  for (const m of s.matchAll(URL_RE)) {
+    out += formatText(s.slice(last, m.index));
+    const href = /^www\./i.test(m[0]) ? 'https://' + m[0] : m[0];
+    out += `<a href="${esc(href)}" target="_blank" rel="noopener noreferrer">${esc(m[0])}</a>`;
+    last = m.index + m[0].length;
+  }
+  return out + formatText(s.slice(last));
+}
+
+const FILE_COLORS = { pdf: '#e5493a', doc: '#2a7ae2', docx: '#2a7ae2', xls: '#1d9a57', xlsx: '#1d9a57', csv: '#1d9a57', ppt: '#e06a2a', pptx: '#e06a2a', jpg: '#8e5bd8', jpeg: '#8e5bd8', png: '#8e5bd8', webp: '#8e5bd8', mp4: '#d8405b', opus: '#e09a1a', mp3: '#e09a1a', vcf: '#1fa2b8' };
+const ICONS = {
+  media: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:-2px;margin-right:4px"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>',
+  deleted: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:-2px;margin-right:4px"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></svg>',
+};
+
+function bodyHtml(m) {
+  if (m.kind === 'meta') return `<span class="meta">${ICONS[m.icon] || ''}${esc(m.text)}</span>`;
+  if (m.kind === 'file') {
+    const ext = ((/\.([a-z0-9]{1,5})$/i.exec(m.file) || [, 'file'])[1]).toLowerCase();
+    return `<div class="file"><span class="fi" style="background:${FILE_COLORS[ext] || '#8696a0'}">${esc(ext)}</span><div>${esc(m.file)}<small>Attachment not included in export</small></div></div>${m.text ? richText(m.text) : ''}`;
+  }
+  return richText(m.text);
+}
+
+let chat = null, chatName = '', meIdx = -1;
+
+function render(data, fileName) {
+  chat = data;
+  const { msgs, senders } = data;
+  const parts = [];
+  let curDay = null, prev = null;
+  msgs.forEach((m, i) => {
+    const k = dayKey(m.date);
+    if (k !== curDay) {
+      if (curDay) parts.push('</section>');
+      parts.push(`<section class="day" data-day="${k}"><h3><span>${fmtDay.format(m.date)}</span></h3>`);
+      curDay = k; prev = null;
+    }
+    if (m.kind === 'system') {
+      parts.push(`<div class="m sys" id="m${i}"><div class="b"><div class="x">${richText(m.text)}</div></div></div>`);
+      prev = null; return;
+    }
+    const cont = prev && prev.s === m.s && m.date - prev.date < 10 * 60 * 1000;
+    const time = (m.edited ? 'Edited ' : '') + fmtTime.format(m.date);
+    parts.push(
+      `<div class="m${cont ? ' c' : ''}" data-s="${m.s}" id="m${i}"><div class="b">` +
+      (cont ? '' : `<div class="n" style="color:var(--p${m.s % 8})">${esc(senders[m.s].name)}</div>`) +
+      `<div class="x">${bodyHtml(m)}</div><span class="tg">${time}<i class="tk"></i></span><span class="t">${time}<i class="tk"></i></span></div></div>`
+    );
+    prev = m;
+  });
+  if (curDay) parts.push('</section>');
+  $('log').innerHTML = parts.join('');
+
+  chatName = (/WhatsApp Chat (?:with|-) (.+?)(?: \(\d+\))?\.txt$/i.exec(fileName) || [])[1] || fileName.replace(/\.txt$/i, '');
+  const first = msgs[0].date, last = msgs[msgs.length - 1].date;
+  $('datepick').min = dayKey(first); $('datepick').max = dayKey(last);
+
+  // In a 1:1 export named after the other person, the exporter is the other participant.
+  let guess = senders.length ? 0 : -1;
+  if (senders.length === 2) {
+    const other = senders.findIndex(s => s.name === chatName);
+    if (other !== -1) guess = 1 - other;
+  }
+  $('swap').disabled = senders.length < 2;
+
+  $('landing').hidden = true;
+  $('bar').hidden = false;
+  $('chat').hidden = false;
+  closeSearch();
+  setMe(guess);
+  scrollToEnd(); // open at the latest message, like the app
+}
+
+function avatarStyle(i) { return `background:var(--p${(i < 0 ? 3 : i) % 8})`; }
+
+function setMe(i) {
+  meIdx = i;
+  const { senders, msgs } = chat;
+  const group = senders.length > 2;
+  $('me-style').textContent = i < 0 ? '' :
+    `.m[data-s="${i}"]{justify-content:flex-end}` +
+    `.m[data-s="${i}"] .b{background:var(--out)}` +
+    `.m[data-s="${i}"]:not(.c) .b{border-top-left-radius:8px;border-top-right-radius:0}` +
+    `.m[data-s="${i}"]:not(.c) .b::before{left:auto;right:-8px;clip-path:polygon(0 0,100% 0,0 100%)}` +
+    `.m[data-s="${i}"] .tk{display:inline-block}` +
+    `.m[data-s="${i}"] .n{display:none}`;
+  // In a 1:1 chat the sides already say who's talking, so names are noise.
+  $('log').classList.toggle('hide-names', !group && i >= 0);
+
+  // Header shows the chat from the chosen person's side: in a 1:1, that's the other person.
+  const otherIdx = !group && senders.length === 2 && i >= 0 ? 1 - i : -1;
+  const title = otherIdx >= 0 ? senders[otherIdx].name : chatName;
+  $('name').textContent = title;
+  $('av').textContent = initials(title);
+  $('av').style.cssText = avatarStyle(otherIdx >= 0 ? otherIdx : (group ? 7 : 3));
+  $('sub').textContent = (i >= 0 ? `Viewing as ${senders[i].name}` : 'Viewing as observer') +
+    ` · ${msgs.length.toLocaleString()} messages`;
+  if (!$('scrim').hidden) renderInfo();
+}
+
+// ---------- Chat info / perspective ----------
+function renderInfo() {
+  const { senders, msgs } = chat;
+  const first = msgs[0].date, last = msgs[msgs.length - 1].date;
+  const days = new Set(msgs.map(m => dayKey(m.date))).size;
+  const total = senders.reduce((a, s) => a + s.count, 0) || 1;
+  const maxC = Math.max(1, ...senders.map(s => s.count));
+  const opt = (i, name, sub, pct) => `
+    <button class="opt" role="radio" aria-checked="${meIdx === i}" data-me="${i}">
+      <span class="avatar" style="${avatarStyle(i < 0 ? 6 : i)}">${i < 0 ? '👁' : esc(initials(name))}</span>
+      <span class="who2"><div>${esc(name)}</div><small>${sub}</small>${pct != null ? `<div class="bar"><i style="width:${pct}%"></i></div>` : ''}</span>
+      <span class="radio"></span>
+    </button>`;
+  $('infoBody').innerHTML = `
+    <div class="sec hero">
+      <div class="avatar" style="${$('av').style.cssText}">${esc($('av').textContent)}</div>
+      <h3>${esc($('name').textContent)}</h3>
+      <p>${senders.length > 2 ? `Group · ${senders.length} participants` : 'Chat export'}</p>
+    </div>
+    <div class="sec">
+      <h4>Overview</h4>
+      <div class="stats">
+        <div><b>${msgs.length.toLocaleString()}</b>messages</div>
+        <div><b>${days.toLocaleString()}</b>active days</div>
+        <div><b>${fmtShort.format(first)}</b>first message</div>
+        <div><b>${fmtShort.format(last)}</b>last message</div>
+      </div>
+    </div>
+    <div class="sec" role="radiogroup" aria-label="View as">
+      <h4>View as</h4>
+      ${senders.map((s, i) => opt(i, s.name, `${s.count.toLocaleString()} messages · ${Math.round(s.count / total * 100)}%`, s.count / maxC * 100)).join('')}
+      ${opt(-1, 'Observer', 'Everyone on the left, with names', null)}
+    </div>`;
+}
+
+function openInfo() { closeMenu(); renderInfo(); $('scrim').hidden = false; $('infoClose').focus(); }
+function closeInfo() { $('scrim').hidden = true; }
+
+function swapPerspective() {
+  const n = chat.senders.length;
+  if (n === 2) setMe(meIdx === 0 ? 1 : 0);
+  else openInfo();
+}
+
+// ---------- Search ----------
+let hits = [], hitPos = -1, hitEl = null, hitHtml = '';
+
+function openSearch() {
+  closeMenu();
+  $('mainrow').hidden = true; $('searchrow').hidden = false;
+  $('q').focus(); $('q').select();
+}
+function closeSearch() {
+  $('q').value = ''; hits = []; hitPos = -1; clearHit(); $('count').textContent = '';
+  $('searchrow').hidden = true; $('mainrow').hidden = false;
+}
+function clearHit() {
+  if (hitEl) { hitEl.querySelector('.x').innerHTML = hitHtml; hitEl.classList.remove('hit'); hitEl = null; }
+}
+
+function runSearch() {
+  const q = $('q').value.trim().toLowerCase();
+  clearHit();
+  hitPos = -1;
+  hits = [];
+  if (!q) { $('count').textContent = ''; return; }
+  chat.msgs.forEach((m, i) => { if ((m.text + ' ' + (m.file || '')).toLowerCase().includes(q)) hits.push(i); });
+  if (!hits.length) { $('count').textContent = '0/0'; return; }
+  // Start from the newest match, like WhatsApp; "up" walks back in time.
+  hitPos = hits.length;
+  step(-1);
+}
+
+function step(dir) {
+  if (!hits.length) return;
+  hitPos = (hitPos + dir + hits.length) % hits.length;
+  $('count').textContent = `${hits.length - hitPos}/${hits.length}`;
+  clearHit();
+  const el = $('m' + hits[hitPos]);
+  const x = el.querySelector('.x');
+  hitEl = el; hitHtml = x.innerHTML;
+  highlight(x, $('q').value.trim());
+  void el.offsetWidth; // restart flash animation
+  el.classList.add('hit');
+  el.scrollIntoView({ block: 'center' });
+}
+
+function highlight(root, q) {
+  const lq = q.toLowerCase();
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  for (const node of nodes) {
+    const lower = node.data.toLowerCase();
+    let idx = lower.indexOf(lq);
+    if (idx < 0) continue;
+    const frag = document.createDocumentFragment();
+    let last = 0;
+    while (idx >= 0) {
+      frag.append(node.data.slice(last, idx));
+      const mk = document.createElement('mark');
+      mk.textContent = node.data.slice(idx, idx + q.length);
+      frag.append(mk);
+      last = idx + q.length;
+      idx = lower.indexOf(lq, last);
+    }
+    frag.append(node.data.slice(last));
+    node.replaceWith(frag);
+  }
+}
+
+// ---------- Menu, date, theme ----------
+function closeMenu() { $('menu').hidden = true; }
+
+function pickDate() {
+  closeMenu();
+  const input = $('datepick');
+  try { input.showPicker(); } catch { input.style.pointerEvents = 'auto'; input.focus(); input.click(); }
+}
+
+function goToDate(v) {
+  if (!v) return;
+  const days = $('log').querySelectorAll('.day');
+  const target = [...days].find(d => d.dataset.day >= v) || days[days.length - 1];
+  target?.scrollIntoView({ block: 'start' });
+}
+
+const THEMES = ['auto', 'light', 'dark'];
+let theme = 'auto';
+function cycleTheme() {
+  theme = THEMES[(THEMES.indexOf(theme) + 1) % 3];
+  if (theme === 'auto') delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = theme;
+  $('themeItem').textContent = 'Theme: ' + theme[0].toUpperCase() + theme.slice(1);
+}
+
+// ---------- File loading ----------
+function load(file) {
+  if (!file) return;
+  if (/\.zip$/i.test(file.name)) return showLanding('That’s a .zip — unzip it first and choose the .txt file inside.');
+  if (file.size > MAX_BYTES) return showLanding(`That file is ${(file.size / 1048576).toFixed(1)} MB. The limit is 10 MB.`);
+  const reader = new FileReader();
+  reader.onload = () => {
+    const data = parse(reader.result);
+    if (!data || !data.msgs.length) return showLanding('Couldn’t find any messages. Is this a WhatsApp chat export (.txt)?');
+    $('err').textContent = '';
+    render(data, file.name);
+  };
+  reader.onerror = () => showLanding('Couldn’t read that file.');
+  reader.readAsText(file);
+}
+
+function showLanding(msg) {
+  $('landing').hidden = false; $('bar').hidden = true; $('chat').hidden = true; $('jump').hidden = true;
+  closeInfo();
+  $('err').textContent = msg || '';
+}
+
+// ---------- Events ----------
+$('drop').addEventListener('click', () => $('file').click());
+$('drop').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('file').click(); } });
+$('file').addEventListener('change', e => { load(e.target.files[0]); e.target.value = ''; });
+
+let dragDepth = 0;
+addEventListener('dragenter', e => { e.preventDefault(); dragDepth++; document.body.classList.add('dragging'); });
+addEventListener('dragleave', () => { if (--dragDepth <= 0) { dragDepth = 0; document.body.classList.remove('dragging'); } });
+addEventListener('dragover', e => e.preventDefault());
+addEventListener('drop', e => {
+  e.preventDefault(); dragDepth = 0; document.body.classList.remove('dragging');
+  load(e.dataTransfer.files[0]);
+});
+
+$('swap').addEventListener('click', swapPerspective);
+$('cal').addEventListener('click', pickDate);
+$('datepick').addEventListener('change', e => { goToDate(e.target.value); e.target.style.pointerEvents = ''; });
+$('searchBtn').addEventListener('click', openSearch);
+$('searchBack').addEventListener('click', closeSearch);
+$('whoBtn').addEventListener('click', openInfo);
+$('whoBtn').addEventListener('keydown', e => { if (e.key === 'Enter') openInfo(); });
+$('menuBtn').addEventListener('click', e => { e.stopPropagation(); $('menu').hidden = !$('menu').hidden; });
+$('menu').addEventListener('click', e => {
+  const act = e.target.closest('button')?.dataset.act;
+  if (act !== 'theme') closeMenu();
+  if (act === 'info' || act === 'view') openInfo();
+  if (act === 'date') pickDate();
+  if (act === 'top') $('chat').scrollTop = 0;
+  if (act === 'theme') cycleTheme();
+  if (act === 'open') $('file').click();
+});
+document.addEventListener('click', e => { if (!$('menu').hidden && !e.target.closest('#menu')) closeMenu(); });
+
+$('scrim').addEventListener('click', e => { if (e.target === $('scrim')) closeInfo(); });
+$('infoClose').addEventListener('click', closeInfo);
+$('infoBody').addEventListener('click', e => {
+  const b = e.target.closest('[data-me]');
+  if (b) setMe(+b.dataset.me);
+});
+
+let searchTimer;
+$('q').addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(runSearch, 200); });
+$('q').addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    e.preventDefault(); clearTimeout(searchTimer);
+    if (hitPos < 0) runSearch(); else step(e.shiftKey ? 1 : -1);
+  }
+});
+$('prev').addEventListener('click', () => step(-1));
+$('next').addEventListener('click', () => step(1));
+
+addEventListener('keydown', e => {
+  if (!chat || $('chat').hidden) return;
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'f') { e.preventDefault(); openSearch(); }
+  if (e.key === 'Escape') {
+    if (!$('scrim').hidden) closeInfo();
+    else if (!$('menu').hidden) closeMenu();
+    else if (!$('searchrow').hidden) closeSearch();
+  }
+});
+
+function updateJump() {
+  const c = $('chat');
+  $('jump').hidden = c.hidden || c.scrollHeight - c.scrollTop - c.clientHeight < 400;
+}
+$('chat').addEventListener('scroll', updateJump, { passive: true });
+// Off-screen days only have estimated heights, so the log grows as the last days render.
+// Stay pinned to the bottom until it settles or the reader starts scrolling.
+let stick = false, stickTimer;
+function scrollToEnd() {
+  const c = $('chat');
+  stick = true;
+  c.scrollTop = c.scrollHeight;
+  clearTimeout(stickTimer);
+  stickTimer = setTimeout(() => { stick = false; updateJump(); }, 1200);
+}
+new ResizeObserver(() => { if (stick) $('chat').scrollTop = $('chat').scrollHeight; }).observe($('log'));
+for (const ev of ['wheel', 'touchstart', 'mousedown', 'keydown']) $('chat').addEventListener(ev, () => { stick = false; }, { passive: true });
+$('jump').addEventListener('click', scrollToEnd);
+</script>
+</body>
+</html>
