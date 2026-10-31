@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- No network access at all: the chat file never leaves the browser. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'">
+<!-- No network access at all: the chat file never leaves the browser. blob: is only local attachments from the zip. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; media-src blob:; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex, nofollow, noarchive">
 <meta name="theme-color" content="#008069">
@@ -139,6 +139,26 @@ header {
 }
 .file .fi { width: 30px; height: 36px; border-radius: 4px; flex: none; display: grid; place-items: end center; color: #fff; font-size: 9px; font-weight: 700; padding-bottom: 4px; text-transform: uppercase; background: #8696a0; }
 .file small { color: var(--muted); display: block; font-size: 11.5px; }
+.file.dl { color: inherit; text-decoration: none; cursor: pointer; }
+.file.dl:hover { background: rgba(127,127,127,.2); }
+.att { display: block; margin: 2px 0 4px; border-radius: 6px; overflow: hidden; background: rgba(127,127,127,.15); position: relative; }
+.att.img, .att.vid { width: 300px; max-width: 100%; aspect-ratio: 4 / 3; }
+.att.img { border: 0; padding: 0; cursor: zoom-in; }
+.att.stk { width: 140px; height: 140px; background: none; }
+.att.aud { width: 300px; max-width: 100%; height: 54px; display: flex; align-items: center; padding: 0 6px; }
+.att img, .att video { width: 100%; height: 100%; display: block; object-fit: cover; }
+.att.stk img { object-fit: contain; }
+.att.vid video { object-fit: contain; background: #000; }
+.att audio { width: 100%; height: 40px; }
+.att.busy::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,.18), transparent); animation: shimmer 1.2s infinite; }
+@keyframes shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+.cap { display: block; margin-top: 2px; }
+.m.dup { display: none; }
+#lightbox { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,.92); display: grid; place-items: center; padding: 56px 12px 12px; }
+#lightbox img { max-width: 100%; max-height: 100%; object-fit: contain; }
+#lightbox .lb-bar { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; gap: 8px; padding: max(8px, env(safe-area-inset-top)) 8px 8px; color: #fff; }
+#lightbox .lb-bar span { flex: 1; min-width: 0; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#lightbox a { color: #fff; font-size: 14px; text-decoration: none; border: 1px solid rgba(255,255,255,.4); border-radius: 999px; padding: 6px 14px; }
 .sys { justify-content: center; margin: 10px 0; }
 .sys .b { background: var(--sys); color: var(--sys-ink); text-align: center; font-size: 12.5px; max-width: 90%; border-radius: 8px; padding: 5px 12px; }
 .sys .b::before { display: none; }
@@ -195,14 +215,14 @@ mark { background: var(--mark); color: inherit; border-radius: 2px; }
     <h1>Chat Reader</h1>
     <p>Open an exported WhatsApp chat and read it like the app.</p>
     <div id="drop" tabindex="0" role="button" aria-label="Choose a chat export">
-      <strong>Drop your chat .txt here</strong>
-      <span>or tap to choose a file · up to 10 MB</span><br>
+      <strong>Drop your chat .txt or .zip here</strong>
+      <span>or tap to choose a file</span><br>
       <span class="pill">Choose file</span>
     </div>
     <p id="err" role="alert"></p>
     <div class="fine">
       <p><b>Private by design.</b> The file is read in your browser and never uploaded. This page is blocked from making any network requests, and nothing is kept once you close the tab.</p>
-      <p><b>How to export:</b> in WhatsApp, open the chat → contact name or ⋮ → <i>Export chat</i> → <i>Without media</i>. If you get a .zip, unzip it and choose the .txt inside.</p>
+      <p><b>How to export:</b> in WhatsApp, open the chat → contact name or ⋮ → <i>Export chat</i>. <i>Without media</i> gives a .txt with just the messages. <i>Attach media</i> gives a .zip, and the photos, videos, voice notes and documents show up in the chat. Either works, no need to unzip.</p>
     </div>
   </div>
 </section>
@@ -267,7 +287,16 @@ mark { background: var(--mark); color: inherit; border-radius: 2px; }
   </aside>
 </div>
 
-<input type="file" id="file" accept=".txt,text/plain" hidden>
+<input type="file" id="file" accept=".txt,.zip,text/plain,application/zip" hidden>
+
+<div id="lightbox" hidden role="dialog" aria-modal="true" aria-label="Photo">
+  <div class="lb-bar">
+    <button class="ib" id="lbClose" aria-label="Close"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    <span id="lbName"></span>
+    <a id="lbSave" download>Save</a>
+  </div>
+  <img id="lbImg" alt="">
+</div>
 <style id="me-style"></style>
 
 <script>
@@ -279,9 +308,18 @@ const $ = id => document.getElementById(id);
 // Dates may be D/M/Y, M/D/Y or Y/M/D; times may be 12h with AM/PM.
 const DATE = String.raw`(\d{1,4})[\/.\-](\d{1,2})[\/.\-](\d{1,4}),?\s+(\d{1,2})[:.](\d{2})(?:[:.](\d{2}))?\s*([ap]\.?\s?m\.?)?`;
 const ANDROID = new RegExp(String.raw`^${DATE}\s+[-–]\s+([\s\S]*)$`, 'i');
-const IOS = new RegExp(String.raw`^‎?\[${DATE}\]\s+([\s\S]*)$`, 'i');
+const IOS = new RegExp(String.raw`^\u200E?\[${DATE}\]\s+([\s\S]*)$`, 'i');
 
-function matchHeader(line) { return ANDROID.exec(line) || IOS.exec(line); }
+function matchHeader(line) {
+  const a = ANDROID.exec(line);
+  if (a) { a.style = 'a'; return a; }
+  const i = IOS.exec(line);
+  if (i) i.style = 'i';
+  return i;
+}
+// Shape of a timestamp (bracketed or not, 2- or 4-digit year, seconds, AM/PM). Chat text pasted
+// from another export often has a different shape, and must not be mistaken for new messages.
+const headerShape = h => `${h.style}${h[1].length === 4 ? 'y' : ''}${h[3].length}${h[6] ? 's' : ''}${h[7] ? 'p' : ''}`;
 
 function detectOrder(heads) {
   let dmy = false, mdy = false;
@@ -307,14 +345,14 @@ function toDate(h, order) {
   return new Date(y, mo - 1, d, hr, +h[5], +(h[6] || 0));
 }
 
-const EDITED = /\s*‎?<This message was edited>\s*$/;
+const EDITED = /\s*\u200E?<This message was edited>\s*$/;
 
 function classify(raw) {
   const out = { kind: 'text', text: raw, edited: false };
   let t = raw;
   if (EDITED.test(t)) { out.edited = true; t = t.replace(EDITED, ''); }
-  const lrm = t.startsWith('‎');
-  t = t.replace(/[‎‏]/g, '');
+  const lrm = t.startsWith('\u200E');
+  t = t.replace(/[\u200E\u200F]/g, '');
   let m;
   if (/^<Media omitted>$/i.test(t)) Object.assign(out, { kind: 'meta', icon: 'media', text: 'Media omitted' });
   else if ((m = /^(image|video|audio|sticker|GIF|document|Contact card) omitted$/i.exec(t))) Object.assign(out, { kind: 'meta', icon: 'media', text: m[1][0].toUpperCase() + m[1].slice(1).toLowerCase() + ' omitted' });
@@ -329,25 +367,29 @@ function classify(raw) {
 }
 
 function parse(text) {
-  const lines = text.replace(/^﻿/, '').replace(/[  ]/g, ' ').split(/\r?\n/);
+  const lines = text.replace(/^\uFEFF/, '').replace(/[\u202F\u00A0]/g, ' ').split(/\r?\n/);
+  const matches = lines.map(matchHeader);
+  const shapes = new Map();
+  for (const h of matches) if (h) shapes.set(headerShape(h), (shapes.get(headerShape(h)) || 0) + 1);
+  const mainShape = [...shapes].sort((a, b) => b[1] - a[1])[0]?.[0];
   const heads = [], raw = [];
-  for (const line of lines) {
-    const h = matchHeader(line);
-    if (h) { heads.push(h); raw.push({ h, body: h[8] }); }
+  lines.forEach((line, n) => {
+    const h = matches[n];
+    if (h && headerShape(h) === mainShape) { heads.push(h); raw.push({ h, body: h[8] }); }
     else if (raw.length) raw[raw.length - 1].body += '\n' + line;
-  }
+  });
   if (!raw.length) return null;
   const order = detectOrder(heads);
   const index = new Map(), senders = [], msgs = [];
   for (const { h, body } of raw) {
     const date = toDate(h, order);
     if (isNaN(date)) continue;
-    const rest = body.replace(/^‎/, '');
+    const rest = body.replace(/^\u200E/, '');
     let sender = null, content = rest;
     const i = rest.indexOf(': ');
     if (i > 0 && i < 80 && !/["“]/.test(rest.slice(0, i))) { sender = rest.slice(0, i); content = rest.slice(i + 2); }
     else if (/^[^:\n]{1,80}:$/.test(rest)) { sender = rest.slice(0, -1); content = ''; }
-    const c = sender === null ? { kind: 'system', text: rest.replace(/[‎‏]/g, '') } : classify(content);
+    const c = sender === null ? { kind: 'system', text: rest.replace(/[\u200E\u200F]/g, '') } : classify(content);
     let s = -1;
     if (c.kind !== 'system') {
       if (!index.has(sender)) { index.set(sender, senders.length); senders.push({ name: sender, count: 0 }); }
@@ -358,6 +400,101 @@ function parse(text) {
     msgs.push({ date, s, ...c });
   }
   return { msgs, senders };
+}
+
+// ---------- Zip ("Attach media" exports) ----------
+// Minimal reader: parse the central directory once, then pull single entries out on demand.
+// Only slices of the File are read, so multi-GB exports never sit in memory whole.
+const u32 = (dv, o) => dv.getUint32(o, true);
+const u16 = (dv, o) => dv.getUint16(o, true);
+const u64 = (dv, o) => Number(dv.getBigUint64(o, true));
+const readView = async (blob, start, end) => new DataView(await blob.slice(start, end).arrayBuffer());
+
+async function isZip(file) {
+  const dv = await readView(file, 0, 4);
+  return dv.byteLength === 4 && u32(dv, 0) === 0x04034b50;
+}
+
+async function openZip(file) {
+  // End of central directory: 22 bytes plus up to 64 KB of comment, at the very end.
+  const tailStart = Math.max(0, file.size - 22 - 0xffff);
+  const tail = await readView(file, tailStart, file.size);
+  let eocd = -1;
+  for (let i = tail.byteLength - 22; i >= 0; i--) if (u32(tail, i) === 0x06054b50) { eocd = i; break; }
+  if (eocd < 0) throw new Error('Not a readable zip file.');
+  let count = u16(tail, eocd + 10), cdSize = u32(tail, eocd + 12), cdOffset = u32(tail, eocd + 16);
+  if (count === 0xffff || cdSize === 0xffffffff || cdOffset === 0xffffffff) {
+    // Zip64 (exports over 4 GB or 65k files): the locator sits just before the EOCD.
+    const loc = eocd - 20;
+    if (loc < 0 || u32(tail, loc) !== 0x07064b50) throw new Error('Unsupported zip layout.');
+    const z64 = await readView(file, u64(tail, loc + 8), u64(tail, loc + 8) + 56);
+    if (u32(z64, 0) !== 0x06064b50) throw new Error('Unsupported zip layout.');
+    count = u64(z64, 32); cdSize = u64(z64, 40); cdOffset = u64(z64, 48);
+  }
+  const cd = await readView(file, cdOffset, cdOffset + cdSize);
+  const utf8 = new TextDecoder();
+  const entries = [];
+  for (let p = 0, n = 0; n < count && p + 46 <= cd.byteLength; n++) {
+    if (u32(cd, p) !== 0x02014b50) throw new Error('Corrupt zip directory.');
+    const flags = u16(cd, p + 8), method = u16(cd, p + 10);
+    let csize = u32(cd, p + 20), size = u32(cd, p + 24), offset = u32(cd, p + 42);
+    const nameLen = u16(cd, p + 28), extraLen = u16(cd, p + 30), commentLen = u16(cd, p + 32);
+    const name = utf8.decode(new Uint8Array(cd.buffer, cd.byteOffset + p + 46, nameLen));
+    // Zip64 extra field carries whichever sizes/offset overflowed 32 bits, in this order.
+    for (let e = p + 46 + nameLen, end = e + extraLen; e + 4 <= end;) {
+      const id = u16(cd, e), len = u16(cd, e + 2);
+      if (id === 0x0001) {
+        let q = e + 4;
+        if (size === 0xffffffff) { size = u64(cd, q); q += 8; }
+        if (csize === 0xffffffff) { csize = u64(cd, q); q += 8; }
+        if (offset === 0xffffffff) { offset = u64(cd, q); }
+      }
+      e += 4 + len;
+    }
+    if (!name.endsWith('/')) entries.push({ name, base: name.split('/').pop(), method, csize, size, offset, encrypted: !!(flags & 1) });
+    p += 46 + nameLen + extraLen + commentLen;
+  }
+  return { file, entries, byName: new Map(entries.map(e => [e.base, e])) };
+}
+
+async function entryBlob(zip, e) {
+  if (e.encrypted) throw new Error('Encrypted zip entries are not supported.');
+  const head = await readView(zip.file, e.offset, e.offset + 30);
+  if (u32(head, 0) !== 0x04034b50) throw new Error('Corrupt zip entry.');
+  const start = e.offset + 30 + u16(head, 26) + u16(head, 28);
+  const raw = zip.file.slice(start, start + e.csize);
+  const type = mimeFor(e.base);
+  if (e.method === 0) return raw.slice(0, raw.size, type);
+  if (e.method === 8) {
+    const out = await new Response(raw.stream().pipeThrough(new DecompressionStream('deflate-raw'))).blob();
+    return out.slice(0, out.size, type);
+  }
+  throw new Error('Unsupported zip compression.');
+}
+
+const MIME = {
+  jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp', heic: 'image/heic',
+  mp4: 'video/mp4', m4v: 'video/mp4', mov: 'video/quicktime', '3gp': 'video/3gpp', webm: 'video/webm',
+  opus: 'audio/ogg; codecs=opus', ogg: 'audio/ogg', m4a: 'audio/mp4', mp3: 'audio/mpeg', aac: 'audio/aac', amr: 'audio/amr', wav: 'audio/wav',
+  pdf: 'application/pdf', vcf: 'text/vcard', txt: 'text/plain',
+};
+const extOf = name => ((/\.([a-z0-9]{1,5})$/i.exec(name) || [, ''])[1]).toLowerCase();
+const mimeFor = name => MIME[extOf(name)] || 'application/octet-stream';
+function attKind(name) {
+  const t = mimeFor(name);
+  if (t.startsWith('image/')) return /^STK-|-STICKER-/i.test(name) ? 'stk' : 'img';
+  if (t.startsWith('video/')) return 'vid';
+  if (t.startsWith('audio/')) return 'aud';
+  if (extOf(name) === 'vcf') return 'vcf';
+  return 'doc';
+}
+const fmtSize = n => n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(0)} KB` : n < 1073741824 ? `${(n / 1048576).toFixed(1)} MB` : `${(n / 1073741824).toFixed(2)} GB`;
+
+// Pick the chat text: Android names it after the chat, iOS calls it _chat.txt.
+function findChatEntry(zip) {
+  const txts = zip.entries.filter(e => extOf(e.base) === 'txt');
+  return txts.find(e => e.base === '_chat.txt') || txts.find(e => /^WhatsApp Chat/i.test(e.base)) ||
+    txts.sort((a, b) => b.size - a.size)[0];
 }
 
 // ---------- Rendering ----------
@@ -396,16 +533,27 @@ const ICONS = {
   deleted: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:-2px;margin-right:4px"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></svg>',
 };
 
+function fileChip(name, note) {
+  const ext = extOf(name) || 'file';
+  return `<span class="fi" style="background:${FILE_COLORS[ext] || '#8696a0'}">${esc(ext)}</span><div>${esc(name)}<small>${esc(note)}</small></div>`;
+}
+
 function bodyHtml(m) {
   if (m.kind === 'meta') return `<span class="meta">${ICONS[m.icon] || ''}${esc(m.text)}</span>`;
   if (m.kind === 'file') {
-    const ext = ((/\.([a-z0-9]{1,5})$/i.exec(m.file) || [, 'file'])[1]).toLowerCase();
-    return `<div class="file"><span class="fi" style="background:${FILE_COLORS[ext] || '#8696a0'}">${esc(ext)}</span><div>${esc(m.file)}<small>Attachment not included in export</small></div></div>${m.text ? richText(m.text) : ''}`;
+    const caption = m.text ? `<span class="cap">${richText(m.text)}</span>` : '';
+    const entry = zip?.byName.get(m.file.split('/').pop());
+    if (!entry) return `<div class="file">${fileChip(m.file, zip ? 'Not found in this export' : 'Attachment not included in export')}</div>${caption}`;
+    // Placeholder only: the file is unpacked when it scrolls near the screen (see loadAtt).
+    const kind = attKind(entry.base), f = esc(entry.base);
+    if (kind === 'img') return `<button class="att img" data-f="${f}" data-k="img" aria-label="Open photo ${f}"></button>${caption}`;
+    if (kind === 'stk' || kind === 'vid' || kind === 'aud') return `<div class="att ${kind}" data-f="${f}" data-k="${kind}"></div>${caption}`;
+    return `<a class="file dl att-doc" data-f="${f}" data-k="${kind}">${fileChip(entry.base, fmtSize(entry.size))}</a>${caption}`;
   }
   return richText(m.text);
 }
 
-let chat = null, chatName = '', meIdx = -1;
+let chat = null, chatName = '', meIdx = -1, zip = null;
 
 function render(data, fileName) {
   chat = data;
@@ -434,8 +582,10 @@ function render(data, fileName) {
   });
   if (curDay) parts.push('</section>');
   $('log').innerHTML = parts.join('');
+  findPhotoPairs(msgs);
+  $('log').querySelectorAll('[data-f]').forEach(el => attObserver.observe(el));
 
-  chatName = (/WhatsApp Chat (?:with|-) (.+?)(?: \(\d+\))?\.txt$/i.exec(fileName) || [])[1] || fileName.replace(/\.txt$/i, '');
+  chatName = (/WhatsApp Chat (?:with|-) (.+?)(?: \(\d+\))?\.(?:txt|zip)$/i.exec(fileName) || [])[1] || fileName.replace(/\.(txt|zip)$/i, '');
   const first = msgs[0].date, last = msgs[msgs.length - 1].date;
   $('datepick').min = dayKey(first); $('datepick').max = dayKey(last);
 
@@ -508,6 +658,7 @@ function renderInfo() {
         <div><b>${days.toLocaleString()}</b>active days</div>
         <div><b>${fmtShort.format(first)}</b>first message</div>
         <div><b>${fmtShort.format(last)}</b>last message</div>
+        ${attachmentStat()}
       </div>
     </div>
     <div class="sec" role="radiogroup" aria-label="View as">
@@ -515,6 +666,13 @@ function renderInfo() {
       ${senders.map((s, i) => opt(i, s.name, `${s.count.toLocaleString()} messages · ${Math.round(s.count / total * 100)}%`, s.count / maxC * 100)).join('')}
       ${opt(-1, 'Observer', 'Everyone on the left, with names', null)}
     </div>`;
+}
+
+function attachmentStat() {
+  const refs = chat.msgs.filter(m => m.kind === 'file');
+  if (!refs.length) return '';
+  const found = zip ? refs.filter(m => zip.byName.has(m.file.split('/').pop())).length : 0;
+  return `<div><b>${found.toLocaleString()} / ${refs.length.toLocaleString()}</b>attachments included</div>`;
 }
 
 function openInfo() { closeMenu(); renderInfo(); $('scrim').hidden = false; $('infoClose').focus(); }
@@ -527,7 +685,7 @@ function swapPerspective() {
 }
 
 // ---------- Search ----------
-let hits = [], hitPos = -1, hitEl = null, hitHtml = '';
+let hits = [], hitPos = -1, hitEl = null;
 
 function openSearch() {
   closeMenu();
@@ -539,7 +697,12 @@ function closeSearch() {
   $('searchrow').hidden = true; $('mainrow').hidden = false;
 }
 function clearHit() {
-  if (hitEl) { hitEl.querySelector('.x').innerHTML = hitHtml; hitEl.classList.remove('hit'); hitEl = null; }
+  if (!hitEl) return;
+  const x = hitEl.querySelector('.x');
+  x.querySelectorAll('mark').forEach(mk => mk.replaceWith(mk.textContent));
+  x.normalize();
+  hitEl.classList.remove('hit');
+  hitEl = null;
 }
 
 function runSearch() {
@@ -548,7 +711,7 @@ function runSearch() {
   hitPos = -1;
   hits = [];
   if (!q) { $('count').textContent = ''; return; }
-  chat.msgs.forEach((m, i) => { if ((m.text + ' ' + (m.file || '')).toLowerCase().includes(q)) hits.push(i); });
+  chat.msgs.forEach((m, i) => { if (!dupHidden.has(i) && (m.text + ' ' + (m.file || '')).toLowerCase().includes(q)) hits.push(i); });
   if (!hits.length) { $('count').textContent = '0/0'; return; }
   // Start from the newest match, like WhatsApp; "up" walks back in time.
   hitPos = hits.length;
@@ -562,7 +725,7 @@ function step(dir) {
   clearHit();
   const el = $('m' + hits[hitPos]);
   const x = el.querySelector('.x');
-  hitEl = el; hitHtml = x.innerHTML;
+  hitEl = el;
   highlight(x, $('q').value.trim());
   void el.offsetWidth; // restart flash animation
   el.classList.add('hit');
@@ -618,20 +781,215 @@ function cycleTheme() {
   $('themeItem').textContent = 'Theme: ' + theme[0].toUpperCase() + theme.slice(1);
 }
 
+// ---------- HD duplicates ----------
+// WhatsApp keeps both the standard and the HD copy of a photo sent in HD, and the export lists
+// them as two messages. Pair back-to-back, uncaptioned photos from one sender within a minute;
+// once both are loaded, compare 16x16 thumbnails and hide the smaller copy if they match.
+const pairOf = new Map(), prints = new Map(), dupHidden = new Set(), dupScores = new Map();
+const isPhoto = m => m.kind === 'file' && !m.text && attKind(m.file) === 'img' && zip?.byName.has(m.file.split('/').pop());
+function findPhotoPairs(msgs) {
+  pairOf.clear(); prints.clear(); dupHidden.clear();
+  for (let i = 1; i < msgs.length; i++) {
+    const a = msgs[i - 1], b = msgs[i];
+    if (isPhoto(a) && isPhoto(b) && a.s === b.s && b.date - a.date <= 60000 && !pairOf.has(i - 1)) {
+      pairOf.set(i - 1, i); pairOf.set(i, i - 1);
+    }
+  }
+}
+function fingerprint(img) {
+  // Halve repeatedly so every pixel is averaged in; one big jump to 16px just samples a few
+  // pixels, and the same photo at two resolutions would then look different.
+  let src = img, w = img.naturalWidth, h = img.naturalHeight;
+  while (w > 32 || h > 32) {
+    w = Math.max(16, Math.ceil(w / 2)); h = Math.max(16, Math.ceil(h / 2));
+    const step = document.createElement('canvas');
+    step.width = w; step.height = h;
+    step.getContext('2d').drawImage(src, 0, 0, w, h);
+    src = step;
+  }
+  const c = document.createElement('canvas');
+  c.width = c.height = 16;
+  const ctx = c.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(src, 0, 0, 16, 16);
+  const d = ctx.getImageData(0, 0, 16, 16).data, g = new Uint8Array(256);
+  for (let i = 0; i < 256; i++) g[i] = (d[i * 4] * 3 + d[i * 4 + 1] * 6 + d[i * 4 + 2]) / 10;
+  return g;
+}
+function checkDuplicate(el, img) {
+  const i = +el.closest('.m').id.slice(1), j = pairOf.get(i);
+  if (j === undefined) return;
+  if (!prints.has(i)) prints.set(i, { g: fingerprint(img), px: img.naturalWidth * img.naturalHeight, r: img.naturalWidth / img.naturalHeight });
+  const a = prints.get(i), b = prints.get(j);
+  if (!b) return;
+  // An HD copy has the same shape; then the thumbnails must be close. Measured on a real export:
+  // HD pairs score about 4-6, different photos 19 and up.
+  if (Math.abs(a.r - b.r) / a.r > 0.02) return;
+  let diff = 0;
+  for (let k = 0; k < 256; k++) diff += Math.abs(a.g[k] - b.g[k]);
+  dupScores.set(Math.min(i, j), diff / 256);
+  if (diff / 256 > 10) return;
+  const smaller = a.px < b.px ? i : j;
+  dupHidden.add(smaller);
+  $('m' + smaller)?.classList.add('dup');
+}
+
+// ---------- Attachments ----------
+// Unpack when a placeholder comes within ~2 screens, release when it drifts far away,
+// so memory tracks what's on screen rather than the size of the export.
+const attUrls = new Map(); // element -> blob URL
+let active = 0;
+const jobs = [];
+function runJobs() {
+  while (active < 3 && jobs.length) {
+    const el = jobs.shift();
+    if (!el.isConnected || el.dataset.want !== '1' || attUrls.has(el)) continue;
+    active++;
+    loadAtt(el).catch(err => attFailed(el, err)).finally(() => { active--; runJobs(); });
+  }
+}
+
+const attObserver = new IntersectionObserver(entries => {
+  for (const { target: el, isIntersecting } of entries) {
+    el.dataset.want = isIntersecting ? '1' : '';
+    if (isIntersecting) {
+      if (photoShape.has(el.dataset.f)) applyShape(el, photoShape.get(el.dataset.f));
+      if (!attUrls.has(el)) { el.classList.add('busy'); jobs.push(el); }
+    }
+    else unloadAtt(el);
+  }
+  runJobs();
+}, { root: $('chat'), rootMargin: '1500px 0px' });
+
+async function loadAtt(el) {
+  const entry = zip?.byName.get(el.dataset.f);
+  if (!entry) return;
+  const blob = await entryBlob(zip, entry);
+  if (el.dataset.want !== '1' || !el.isConnected) return; // scrolled away while unpacking
+  const url = URL.createObjectURL(blob);
+  attUrls.set(el, url);
+  el.classList.remove('busy');
+  const k = el.dataset.k;
+  if (k === 'img' || k === 'stk') {
+    const img = new Image();
+    img.alt = entry.base; img.decoding = 'async'; img.src = url;
+    img.onerror = () => attFailed(el, new Error('This image format can’t be shown here.'));
+    el.replaceChildren(img);
+    if (k === 'img') img.onload = () => { fitPhoto(el, img); checkDuplicate(el, img); };
+  } else if (k === 'vid' || k === 'aud') {
+    const media = document.createElement(k === 'vid' ? 'video' : 'audio');
+    if (!media.canPlayType(blob.type)) return attFailed(el, new Error('This browser can’t play this file.'));
+    media.controls = true; media.preload = 'metadata'; media.playsInline = true; media.src = url;
+    media.onerror = () => attFailed(el, new Error('This browser can’t play this file.'));
+    el.replaceChildren(media);
+  } else {
+    // Documents and contacts become real links: PDFs open in a tab, everything else downloads.
+    el.href = url;
+    if (k === 'doc' && blob.type === 'application/pdf') { el.target = '_blank'; el.rel = 'noopener'; }
+    else el.download = entry.base;
+    if (k === 'vcf') {
+      const fn = /^FN[^:]*:(.+)$/m.exec(await blob.text());
+      if (fn) el.querySelector('small').textContent = `Contact · ${fn[1].trim()}`;
+    }
+  }
+}
+
+const photoShape = new Map(); // file name -> width/height
+function fitPhoto(el, img) {
+  const r = Math.min(Math.max(img.naturalWidth / img.naturalHeight, 0.5), 2);
+  photoShape.set(el.dataset.f, r);
+  applyShape(el, r);
+}
+function applyShape(el, r) {
+  el.style.aspectRatio = r;
+  if (r < 1) el.style.width = `${Math.round(Math.min(300, 380 * r))}px`; // portrait: cap height near 380px
+}
+
+function unloadAtt(el) {
+  const url = attUrls.get(el);
+  if (!url) return;
+  const media = el.querySelector('video, audio');
+  if (el.dataset.pinned || (media && !media.paused)) { el.dataset.want = '1'; return; } // don't cut off something playing
+  if (el.dataset.k === 'img' || el.dataset.k === 'stk' || media) el.replaceChildren();
+  else el.removeAttribute('href');
+  URL.revokeObjectURL(url);
+  attUrls.delete(el);
+}
+
+function attFailed(el, err) {
+  el.classList.remove('busy');
+  const entry = zip?.byName.get(el.dataset.f);
+  if (!entry || el.classList.contains('file')) return;
+  // Fall back to a download chip so the file is still reachable.
+  const a = document.createElement('a');
+  a.className = 'file dl'; a.innerHTML = fileChip(entry.base, err.message);
+  a.addEventListener('click', async e => {
+    if (a.href) return;
+    e.preventDefault();
+    a.href = URL.createObjectURL(await entryBlob(zip, entry));
+    a.download = entry.base;
+    a.click();
+  });
+  attObserver.unobserve(el);
+  const url = attUrls.get(el);
+  if (url) { URL.revokeObjectURL(url); attUrls.delete(el); }
+  el.replaceWith(a);
+}
+
+function resetAttachments() {
+  attObserver.disconnect();
+  photoShape.clear();
+  jobs.length = 0;
+  for (const url of attUrls.values()) URL.revokeObjectURL(url);
+  attUrls.clear();
+  closeLightbox();
+}
+
+function openLightbox(el) {
+  const url = attUrls.get(el);
+  if (!url) return;
+  $('lbImg').src = url; $('lbSave').href = url; $('lbSave').download = el.dataset.f;
+  $('lbName').textContent = el.dataset.f;
+  el.dataset.pinned = '1';
+  $('lightbox').hidden = false;
+  $('lbClose').focus();
+}
+function closeLightbox() {
+  $('lightbox').hidden = true;
+  $('lbImg').removeAttribute('src');
+  document.querySelectorAll('[data-pinned]').forEach(el => delete el.dataset.pinned);
+}
+
 // ---------- File loading ----------
-function load(file) {
+// .txt: read it directly. .zip ("Attach media"): read the chat text out of it and keep the
+// zip open so attachments can be unpacked as they scroll into view. No size cap on the zip:
+// only its directory and the chat text are read up front.
+async function load(file) {
   if (!file) return;
-  if (/\.zip$/i.test(file.name)) return showLanding('That’s a .zip — unzip it first and choose the .txt file inside.');
-  if (file.size > MAX_BYTES) return showLanding(`That file is ${(file.size / 1048576).toFixed(1)} MB. The limit is 10 MB.`);
-  const reader = new FileReader();
-  reader.onload = () => {
-    const data = parse(reader.result);
-    if (!data || !data.msgs.length) return showLanding('Couldn’t find any messages. Is this a WhatsApp chat export (.txt)?');
+  resetAttachments();
+  zip = null;
+  try {
+    let text, name = file.name;
+    if (/\.zip$/i.test(file.name) || await isZip(file)) {
+      if (typeof DecompressionStream === 'undefined') return showLanding('This browser can’t open .zip files. Try a recent Chrome, Safari or Firefox, or export “Without media” for a .txt.');
+      const z = await openZip(file);
+      const chatEntry = findChatEntry(z);
+      if (!chatEntry) return showLanding('Couldn’t find the chat .txt inside this zip.');
+      if (chatEntry.size > MAX_BYTES) return showLanding(`The chat text in this zip is ${fmtSize(chatEntry.size)}. The limit is 10 MB of text.`);
+      text = await (await entryBlob(z, chatEntry)).text();
+      zip = z;
+      if (chatEntry.base !== '_chat.txt') name = chatEntry.base;
+    } else {
+      if (file.size > MAX_BYTES) return showLanding(`That file is ${fmtSize(file.size)}. The limit for a .txt is 10 MB.`);
+      text = await file.text();
+    }
+    const data = parse(text);
+    if (!data || !data.msgs.length) { zip = null; return showLanding('Couldn’t find any messages. Is this a WhatsApp chat export?'); }
     $('err').textContent = '';
-    render(data, file.name);
-  };
-  reader.onerror = () => showLanding('Couldn’t read that file.');
-  reader.readAsText(file);
+    render(data, name);
+  } catch (err) {
+    zip = null;
+    showLanding(`Couldn’t read that file. ${err.message || ''}`.trim());
+  }
 }
 
 function showLanding(msg) {
@@ -653,6 +1011,13 @@ addEventListener('drop', e => {
   e.preventDefault(); dragDepth = 0; document.body.classList.remove('dragging');
   load(e.dataTransfer.files[0]);
 });
+
+$('log').addEventListener('click', e => {
+  const img = e.target.closest('.att.img');
+  if (img) openLightbox(img);
+});
+$('lbClose').addEventListener('click', closeLightbox);
+$('lightbox').addEventListener('click', e => { if (e.target === $('lightbox')) closeLightbox(); });
 
 $('swap').addEventListener('click', swapPerspective);
 $('cal').addEventListener('click', pickDate);
@@ -695,7 +1060,8 @@ addEventListener('keydown', e => {
   if (!chat || $('chat').hidden) return;
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'f') { e.preventDefault(); openSearch(); }
   if (e.key === 'Escape') {
-    if (!$('scrim').hidden) closeInfo();
+    if (!$('lightbox').hidden) closeLightbox();
+    else if (!$('scrim').hidden) closeInfo();
     else if (!$('menu').hidden) closeMenu();
     else if (!$('searchrow').hidden) closeSearch();
   }
